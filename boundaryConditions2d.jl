@@ -8,6 +8,7 @@
 
             bnd_cell[1] = 1.1766;
             bnd_cell[2] = 1232.6445;
+			#bnd_cell[2]	= 100.0;
             bnd_cell[3] = 0.0;
             bnd_cell[4] = 101325.0;
 
@@ -35,6 +36,7 @@ end
 
             bnd_cell[1] = 1.1766;
             bnd_cell[2] = 1232.6445;
+			#bnd_cell[2]	= 100.0;
             bnd_cell[3] = 0.0;
             bnd_cell[4] = 101325.0;
 

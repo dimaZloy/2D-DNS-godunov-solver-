@@ -16,6 +16,7 @@ using ProfileView;
 
 
 include("primeObjects.jl");
+include("sutherland.jl"); # calc air viscosity using Sutherland law
 include("thermo.jl"); #setup thermodynamics
 include("utilsIO.jl");
 #include("RoeFlux2d.jl")
@@ -74,6 +75,10 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	flag2loadPreviousResults = false;
 
 	testMesh = readMesh2dHDF5(pname);
+	
+	# display(testMesh.cells2nodes)
+	# display( findall(x->x==0, testMesh.cells2nodes) )
+	
 		
 	cellsThreads = distibuteCellsInThreadsSA(Threads.nthreads(), testMesh.nCells); ## partition mesh 
 	nodesThreads = distibuteNodesInThreadsSA(Threads.nthreads(), testMesh.nNodes); ## partition mesh 
@@ -122,13 +127,51 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	iFLUXX  = zeros(Float64,testMesh.nCells,4);
 	dummy  = zeros(Float64,testMesh.nNodes,4);
 	
+	#localTau = zeros(Float64,testMesh.nCells,1);
+	
+
+	localDampNodes  = zeros(Float64,testMesh.nNodes);
+	localDampCells  = zeros(Float64,testMesh.nCells);
+
+	for i = 1:testMesh.nCells
+		rad::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1] + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2]);
+		localDampCells[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
+		
+	end
+
+	
+	for i = 1:testMesh.nNodes
+		#rad::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1] + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2]);
+		
+		rad::Float64 = sqrt(testMesh.xNodes[i]*testMesh.xNodes[i] + testMesh.yNodes[i]*testMesh.yNodes[i]);
+		localDampNodes[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
+		
+	end
+	
+	
+	
+	
 	
 	phs2dcns2dcellsSA(UconsCellsOldX,testfields2d, thermo.Gamma);	
 	phs2dcns2dcellsSA(UconsCellsNewX,testfields2d, thermo.Gamma);	
 	
 	
-	cells2nodesSolutionReconstructionWithStencilsUCons(nodesThreads, testMesh, UconsCellsOldX,  UconsNodesOldX );	
+	#cells2nodesSolutionReconstructionWithStencilsUCons(nodesThreads, testMesh, UconsCellsOldX,  UconsNodesOldX );	
 
+	#@sync @distributed for p in workers()	
+	Threads.@threads for p in 1:Threads.nthreads()
+	
+		 beginNode::Int32 = nodesThreads[p,1];
+		 endNode::Int32 = nodesThreads[p,2];
+																	
+		 cells2nodesSolutionReconstructionWithStencils(beginNode, endNode, 
+			testMesh, testfields2d, viscfields2d, UconsCellsOldX,  UconsNodesOldX);
+		
+	 end
+
+	
+
+	figure(101)
 	
 
 	timeVector = [];
@@ -137,7 +180,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	residualsVector3 = []; 
 	residualsVector4 = []; 
 	residualsVectorMax = ones(Float64,4);
-	convergenceCriteria= [1e-5;1e-5;1e-5;1e-5;];
+	convergenceCriteria= [1e-10;1e-10;1e-10;1e-10;];
 	
 	
 	# debugSaveInit = false;
@@ -172,10 +215,25 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	
 	maxEdge,id = findmax(testMesh.HX);
 	
+	# dynControls.tau = 0.0;
+	
+	# for i = 1:testMesh.nCells
+		
+		# localTau[i] = solControls.CFL*testMesh.HX[i]*testMesh.HX[i]/( *testMesh.HX[i]*testfields2d.VMAXCells[i] + 2.0*thermoX.Gamma/thermoX.Pr * viscfields2d.artViscosityCells[i]/testfields2d.densityCells[i]);
+		
+		# if localTau[i] >dynControls.tau
+			# dynControls.tau = localTau[i];
+		# end
+	
+	# end	
+	
+	
 
 	dt::Float64 =  solControls.dt;  
 	# @everywhere dtX = $dt; 
 	# @everywhere maxEdgeX = $maxEdge; 
+
+	@everywhere localDampCellsX = $localDampCells;
 
 	debug = true;	
 	useArtViscoistyDapming = true;
@@ -205,7 +263,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			
 				calcArtificialViscositySA( cellsThreads, testMesh, thermo, testfields2d, viscfields2d);
 					
-				calcDiffTerm(cellsThreads, testMesh, testfields2d, viscfields2d, thermo, UconsNodesOldX, UConsDiffCellsX, UConsDiffNodesX);
+				calcDiffTerm(cellsThreads, testMesh, testfields2d, viscfields2d, thermo, UconsNodesOldX, UConsDiffCellsX, UConsDiffNodesX, localDampCellsX);
 			
 			end
 	
@@ -214,7 +272,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			calcOneStage(1.0, solControls.dt, dynControls.flowTime, testMesh , testfields2d, thermo, cellsThreads,  UconsCellsOldX, iFLUXX, UConsDiffCellsX,  UconsCellsNewX);
 			
 			#doExplicitRK3TVD(1.0, dtX, testMeshDistrX , testfields2dX, thermoX, cellsThreadsX,  UconsCellsOldX, iFLUXX,  UConsDiffCellsX, 
-			#  UconsCellsNew1X,UconsCellsNew2X,UconsCellsNew3X,UconsCellsNewX);
+			#   UconsCellsNew1X,UconsCellsNew2X,UconsCellsNew3X,UconsCellsNewX);
 			
 						
 			
@@ -225,7 +283,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 				endCell::Int32 = cellsThreads[p,2];
 				#println("worker: ",p,"\tbegin cell: ",beginCell,"\tend cell: ", endCell);
 														
-				updateVariablesSA(beginCell, endCell, thermo.Gamma,  UconsCellsNewX, UconsCellsOldX, DeltaX, testfields2d);
+				#updateVariablesSA(beginCell, endCell, thermo.Gamma,  UconsCellsNewX, UconsCellsOldX, DeltaX, testfields2d);
+				updateVariablesSA(beginCell, endCell, thermo,  UconsCellsNewX, UconsCellsOldX, DeltaX, testfields2d);
 		
 			end
 			
@@ -239,7 +298,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 				 endNode::Int32 = nodesThreads[p,2];
 				
 														
-				 cells2nodesSolutionReconstructionWithStencilsDistributed(beginNode, endNode, 
+				 cells2nodesSolutionReconstructionWithStencils(beginNode, endNode, 
 					testMesh, testfields2d, viscfields2d, UconsCellsOldX,  UconsNodesOldX);
 		
 			 end
@@ -247,7 +306,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			
 			
 			
-			#cells2nodesSolutionReconstructionWithStencilsSerial(testMeshX,testfields2dX, viscfields2dX, UconsCellsOldX,  UconsNodesOldX);
+			# cells2nodesSolutionReconstructionWithStencilsSerial(testMesh,testfields2d, viscfields2d, UconsCellsOldX,  UconsNodesOldX);
 								
 	
 			(dynControls.rhoMax,id) = findmax(testfields2d.densityCells);
@@ -366,7 +425,9 @@ end
 ##@profview godunov2dthreads("2dmixinglayerUp_delta2.bson", numThreads, "2dMixingLayer_delta2", false); 
 
 
-godunov2dthreads("cyl2d_supersonic3",  "cyl2d_supersonic3", false); 
+#godunov2dthreads("cyl2d_supersonic1",  "cyl2d_supersonic1", false); 
+godunov2dthreads("cyl2d_supersonic1_BL",  "cyl2d_supersonic1_BL", false); 
+#godunov2dthreads("cyl2d_supersonic1_BL_test",  "cyl2d_supersonic1_BL_test", false); 
 
 
 

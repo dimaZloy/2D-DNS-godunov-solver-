@@ -51,7 +51,8 @@ end
 
 
 @everywhere function updateVariablesSA(
-	beginCell::Int32,endCell::Int32,Gamma::Float64,
+	beginCell::Int32,endCell::Int32,
+	thermo::THERMOPHYSICS, ## Gamma::Float64,
 	 UconsCellsNew::Array{Float64,2},
 	 UconsCellsOld::Array{Float64,2},
 	 Delta::Array{Float64,2},
@@ -59,12 +60,23 @@ end
 	
 	for i=beginCell:endCell
 	
+		# if UconsCellsNew[i,1] < 0.01
+			# testfields2d.densityCells[i] = 0.01;
+		# elseif UconsCellsNew[i,1] > 10.0
+			# testfields2d.densityCells[i] = 10.0;
+		# else
+			# testfields2d.densityCells[i] = UconsCellsNew[i,1];
+		# end
+		
 		testfields2d.densityCells[i] = UconsCellsNew[i,1];
+		
 		testfields2d.UxCells[i] 	  = UconsCellsNew[i,2]/UconsCellsNew[i,1];
 		testfields2d.UyCells[i] 	  = UconsCellsNew[i,3]/UconsCellsNew[i,1];
-		testfields2d.pressureCells[i] = (Gamma-1.0)*( UconsCellsNew[i,4] - 0.5*( UconsCellsNew[i,2]*UconsCellsNew[i,2] + UconsCellsNew[i,3]*UconsCellsNew[i,3] )/UconsCellsNew[i,1] );
+		testfields2d.pressureCells[i] = (thermo.Gamma-1.0)*( UconsCellsNew[i,4] - 0.5*( UconsCellsNew[i,2]*UconsCellsNew[i,2] + UconsCellsNew[i,3]*UconsCellsNew[i,3] )/UconsCellsNew[i,1] );
+		
+		testfields2d.temperatureCells[i] 	= testfields2d.pressureCells[i]/testfields2d.densityCells[i]/ thermo.RGAS;
 
-		testfields2d.aSoundCells[i] = sqrt( Gamma * testfields2d.pressureCells[i]/testfields2d.densityCells[i] );
+		testfields2d.aSoundCells[i] = sqrt( thermo.Gamma * testfields2d.pressureCells[i]/testfields2d.densityCells[i] );
 		testfields2d.VMAXCells[i]  = sqrt( testfields2d.UxCells[i]*testfields2d.UxCells[i] + testfields2d.UyCells[i]*testfields2d.UyCells[i] ) + testfields2d.aSoundCells[i];
 		
 		Delta[i,1] = UconsCellsNew[i,1] - UconsCellsOld[i,1];
@@ -155,7 +167,7 @@ end
 			
 			##tricontourf(testMesh.xNodes,testMesh.yNodes, triangles, densityF,pControls.nContours,vmin=pControls.rhoMINcont,vmax=pControls.rhoMAXcont);
 			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFields.densityNodes);
-			
+			#colorbar();
 			set_cmap("jet");
 			xlabel("x");
 			ylabel("y");
@@ -165,7 +177,14 @@ end
 			subplot(3,1,2);	
 			cla();
 			
-			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFieldsViscous.artViscosityNodes);
+			maxMu,id = findmax(testFieldsViscous.artViscosityNodes);
+			minMu,id = findmax(testFieldsViscous.artViscosityNodes);
+			
+			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFieldsViscous.artViscosityNodes, 25, vmin = minMu, vmax=maxMu);
+			#colorbar();
+			#tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, localDampNodes);
+			
+			
 			
 			set_cmap("jet");
 			xlabel("x");

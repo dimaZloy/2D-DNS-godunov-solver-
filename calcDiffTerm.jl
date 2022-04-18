@@ -2,7 +2,7 @@
 
 function calcDiffTerm(cellsThreadsX::Array{Int32,2}, testMeshDistrX::mesh2d_Int32, 
 		testfields2dX::fields2d, viscousFields2dX::viscousFields2d, thermoX::THERMOPHYSICS, 
-		UCNodes::Array{Float64,2}, UConsDiffCells::Array{Float64,2}, UConsDiffNodes::Array{Float64,2})
+		UCNodes::Array{Float64,2}, UConsDiffCells::Array{Float64,2}, UConsDiffNodes::Array{Float64,2}, dampCells::Array{Float64,1} )
 
 
 		Threads.@threads for p in 1:Threads.nthreads()
@@ -10,6 +10,9 @@ function calcDiffTerm(cellsThreadsX::Array{Int32,2}, testMeshDistrX::mesh2d_Int3
 	
 			beginCell::Int32 = cellsThreadsX[p,1];
 			endCell::Int32 = cellsThreadsX[p,2];
+			
+			#nodesGradientReconstructionUconsFastSA33(beginCell,endCell, testMeshDistrX, UCNodes, viscousFields2dX);	
+			
 			
 			nodesGradientReconstructionUconsFastSA(beginCell,endCell, testMeshDistrX, UCNodes, viscousFields2dX);	
 			
@@ -25,6 +28,10 @@ function calcDiffTerm(cellsThreadsX::Array{Int32,2}, testMeshDistrX::mesh2d_Int3
 			nodesDivergenceReconstructionFastSA22(beginCell,endCell, testMeshDistrX,  viscousFields2dX.cdUdxCells,viscousFields2dX.cdUdyCells, viscousFields2dX.laplasUCuCells);
 			nodesDivergenceReconstructionFastSA22(beginCell,endCell, testMeshDistrX,  viscousFields2dX.cdVdxCells,viscousFields2dX.cdVdyCells, viscousFields2dX.laplasUCvCells);
 			nodesDivergenceReconstructionFastSA22(beginCell,endCell, testMeshDistrX,  viscousFields2dX.cdEdxCells,viscousFields2dX.cdEdyCells, viscousFields2dX.laplasUCeCells);
+
+			# nodesDivergenceReconstructionFastSA33(beginCell,endCell, testMeshDistrX,  viscousFields2dX.cdUdxCells,viscousFields2dX.cdUdyCells, viscousFields2dX.laplasUCuCells);
+			# nodesDivergenceReconstructionFastSA33(beginCell,endCell, testMeshDistrX,  viscousFields2dX.cdVdxCells,viscousFields2dX.cdVdyCells, viscousFields2dX.laplasUCvCells);
+			# nodesDivergenceReconstructionFastSA33(beginCell,endCell, testMeshDistrX,  viscousFields2dX.cdEdxCells,viscousFields2dX.cdEdyCells, viscousFields2dX.laplasUCeCells);
 
 			
 			
@@ -44,7 +51,6 @@ function calcDiffTerm(cellsThreadsX::Array{Int32,2}, testMeshDistrX::mesh2d_Int3
 			
 			for i = beginCell:endCell
 			
-				
 					
 				# if (viscousFields2dX.artViscosityCells[i] > avEpsilon)
 					
@@ -55,9 +61,13 @@ function calcDiffTerm(cellsThreadsX::Array{Int32,2}, testMeshDistrX::mesh2d_Int3
 
 				# end
 				
-				UConsDiffCells[i,2] = avEpsilon*viscousFields2dX.laplasUCuCells[i];
-				UConsDiffCells[i,3] = avEpsilon*viscousFields2dX.laplasUCvCells[i];
-				UConsDiffCells[i,4] = avEpsilon*thermoX.Cp/Pr*viscousFields2dX.laplasUCeCells[i];
+				# UConsDiffCells[i,2] = avEpsilon*viscousFields2dX.laplasUCuCells[i];
+				# UConsDiffCells[i,3] = avEpsilon*viscousFields2dX.laplasUCvCells[i];
+				# UConsDiffCells[i,4] = avEpsilon*thermoX.Cp/Pr*viscousFields2dX.laplasUCeCells[i];
+
+				UConsDiffCells[i,2] = viscousFields2dX.artViscosityCells[i]*viscousFields2dX.laplasUCuCells[i]*dampCells[i];
+				UConsDiffCells[i,3] = viscousFields2dX.artViscosityCells[i]*viscousFields2dX.laplasUCvCells[i]*dampCells[i];
+				UConsDiffCells[i,4] = viscousFields2dX.artViscosityCells[i]*thermoX.Cp/Pr*viscousFields2dX.laplasUCeCells[i]*dampCells[i];
 
 
 			end

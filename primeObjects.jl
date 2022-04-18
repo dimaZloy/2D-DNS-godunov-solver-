@@ -25,55 +25,7 @@
 
 end
 
-# @everywhere mutable struct viscousFields2d_shared
-	
-	# artViscosityCells::SharedArray{Float64,1}
-	# artViscosityNodes::SharedArray{Float64,1}
-	
-	# dUdxCells::SharedArray{Float64,1}
-	# dUdyCells::SharedArray{Float64,1}
-	
-	# dVdxCells::SharedArray{Float64,1}
-	# dVdyCells::SharedArray{Float64,1}
-	
-	# laplasUCuCells::SharedArray{Float64,1}
-	# laplasUCvCells::SharedArray{Float64,1}
-	# laplasUCeCells::SharedArray{Float64,1}
-	
-	# cdUdxCells::SharedArray{Float64,1}
-	# cdUdyCells::SharedArray{Float64,1}
-	
-	# cdVdxCells::SharedArray{Float64,1}
-	# cdVdyCells::SharedArray{Float64,1}
-	# cdEdxCells::SharedArray{Float64,1}
-	# cdEdyCells::SharedArray{Float64,1}
 
-# end
-
-
-# @everywhere mutable struct fields2d_shared
-	
-	# ## even more slowly !!!
-	# ##UphsCells::Array{Float64,2} 
-	# ##UphsNodes::Array{Float64,2}
-	
-	# densityCells::SharedArray{Float64,1}
-	# UxCells::SharedArray{Float64,1}
-	# UyCells::SharedArray{Float64,1}
-	# pressureCells::SharedArray{Float64,1}
-	# aSoundCells::SharedArray{Float64,1}
-	# VMAXCells::SharedArray{Float64,1}
-
-	# densityNodes::SharedArray{Float64,1}
-	# UxNodes::SharedArray{Float64,1}
-	# UyNodes::SharedArray{Float64,1}
-	# pressureNodes::SharedArray{Float64,1}
-	
-
-	# #UconsCellsOld::Array{Float64,2}
-	# #UconsCellsNew::Array{Float64,2}
-
-# end
 
 @everywhere mutable struct fields2d	
 	
@@ -87,6 +39,7 @@ end
 	pressureCells::Array{Float64,1}
 	aSoundCells::Array{Float64,1}
 	VMAXCells::Array{Float64,1}
+	temperatureCells::Array{Float64,1}
 
 	densityNodes::Array{Float64,1}
 	UxNodes::Array{Float64,1}
@@ -128,64 +81,7 @@ end
 end
 
 
-# @everywhere struct mesh2d_shared
-	# mesh_connectivity::SharedArray{Int32,2} 	## [nCellsx3]
-	# cell_mid_points::SharedArray{Float64,2} 		## [nCellsx2]
-	# cell_areas::SharedVector{Float64} 			## [nCellsx1] 
-	# Z::SharedVector{Float64} 					## [nCellsx1] 1/cell_areas
-	# HX::SharedVector{Float64} 					## [nCellsx1] max edge length in  CV
-	# cell_edges_Nx::SharedArray{Float64,2} 		## [nCellsx4]
-	# cell_edges_Ny::SharedArray{Float64,2} 		## [nCellsx4]
-	# cell_edges_length::SharedArray{Float64,2} 	## [nCellsx4]
-	# cell_stiffness::SharedArray{Int32,2} 		## [nCellsx4]
-	# cell_clusters::Array{Int32,2} 			## [nNodesx8]
-	# node_stencils::Array{Float64,2} 		## [nNodesx8]
-	# node2cellsL2up::SharedArray{Int32,2} 		## [nCellsx8]
-	# node2cellsL2down::SharedArray{Int32,2} 		## [nCellsx8]
-	# cells2nodes::SharedArray{Int32,2} 		    ## [nCellsx8]
-# end
 
-
-# @everywhere struct mesh2d_shared
-	# mesh_connectivity::SharedArray{Int64,2} 	## [nCellsx3]
-	# Z::SharedVector{Float64} 					## [nCellsx1] 1/cell_areas
-	# cell_edges_Nx::SharedArray{Float64,2} 		## [nCellsx4]
-	# cell_edges_Ny::SharedArray{Float64,2} 		## [nCellsx4]
-	# cell_edges_length::SharedArray{Float64,2} 	## [nCellsx4]
-	# cell_stiffness::SharedArray{Int64,2} 		## [nCellsx4]
-	# node2cellsL2up::SharedArray{Int64,2} 				## [nCellsx8]
-	# node2cellsL2down::SharedArray{Int64,2} 			## [nCellsx8]
-# end
-
-# @everywhere struct mesh2d
-	# nCells::Int64
-	# nNodes::Int64
-	# nNeibCells::Int64						## max number of neighbors 
-	# nBSets::Int64							##  number of boundaries  
-	# xNodes::Array{Float64,1} 				##  mesh_nodes[nNodesx3]
-	# yNodes::Array{Float64,1} 				##	mesh_nodes[nNodesx3]
-	# mesh_connectivity::Array{Int64,2} 		## [nCellsx7]
-	# bc_data::Array{Int64,2}
-	# bc_indexes::Array{Int64,1}
-	# cell_nodes_X::Array{Float64,2} 			## [nCellsx4]
-	# cell_nodes_Y::Array{Float64,2} 			## [nCellsx4]
-	# cell_mid_points::Array{Float64,2} 		## [nCellsx2]
-	# cell_areas::Array{Float64,1} 			## [nCellsx1]
-	# HX::Array{Float64,1}
-	# Z::Array{Float64,1} 					## [nCellsx1] 1/cell_areas
-	# cell_edges_Nx::Array{Float64,2} 		## [nCellsx4]
-	# cell_edges_Ny::Array{Float64,2} 		## [nCellsx4]
-	# cell_edges_length::Array{Float64,2} 	## [nCellsx4]
-	# cell_stiffness::Array{Int64,2} 			## [nCellsx4]
-	# cell_clusters::Array{Int64,2} 			## [nNodesx8]
-	# node_stencils::Array{Float64,2} 		## [nNodesx8]
-	# maxArea::Float64
-	# maxEdgeLength::Float64
-	# VTKCells::Array{MeshCell,1}
-	# node2cellsL2up::Array{Int64,2} 			## [nCellsx8]
-	# node2cellsL2down::Array{Int64,2} 		## [nCellsx8]
-	# cells2nodes::Array{Int64,2}
-# end
 
 @everywhere mutable struct solutionCellsT
 	dt::Float64
