@@ -125,6 +125,9 @@ function createFields2d(testMesh::mesh2d_Int32, thermo::THERMOPHYSICS)
 	aSoundCells   = zeros(Float64,testMesh.nCells); #speed of sound
 	VMAXCells     = zeros(Float64,testMesh.nCells); #max speed in domain
 	temperatureCells = zeros(Float64,testMesh.nCells); 
+	gammaCells = zeros(Float64,testMesh.nCells); 
+	kCells= zeros(Float64,testMesh.nCells); 
+	cflCells= zeros(Float64,testMesh.nCells); 
 	
 	densityNodes  = zeros(Float64,testMesh.nNodes); 
 	UxNodes       = zeros(Float64,testMesh.nNodes); 
@@ -138,9 +141,9 @@ function createFields2d(testMesh::mesh2d_Int32, thermo::THERMOPHYSICS)
 		#UxCells[i] 			= 100.0;
 		UyCells[i] 			= 0.0; 
 		pressureCells[i] 	= 101325.0;
-		
 		temperatureCells[i] 	= pressureCells[i]/densityCells[i]/ thermo.RGAS;
-		
+		kCells[i] 	= thermo.kFromT(temperatureCells[i]);
+		gammaCells[i] = thermo.gammaFromT(temperatureCells[i]);
 		aSoundCells[i] = sqrt( thermo.Gamma * pressureCells[i]/densityCells[i] );
 		VMAXCells[i]  = sqrt( UxCells[i]*UxCells[i] + UyCells[i]*UyCells[i] ) + aSoundCells[i];
 		#entropyCell[i] = UphysCells[i,1]/(thermo.Gamma-1.0)*log(UphysCells[i,4]/UphysCells[i,1]*thermo.Gamma);
@@ -158,6 +161,9 @@ function createFields2d(testMesh::mesh2d_Int32, thermo::THERMOPHYSICS)
 		aSoundCells,
 		VMAXCells,
 		temperatureCells,
+		gammaCells,
+		kCells,
+		cflCells, 
 		densityNodes,
 		UxNodes,
 		UyNodes,

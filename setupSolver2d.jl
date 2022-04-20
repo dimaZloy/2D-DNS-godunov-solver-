@@ -2,7 +2,10 @@
 println("set numerics ...");
 
 
-thermo = THERMOPHYSICS(287.058,1.4,1000.0,0.0,0.0);
+#thermo = THERMOPHYSICS(287.058,1.4,1000.0,0.0,0.0);
+
+thermo = THERMOPHYSICS(287.058,1.4,1000.0,0.0,0.0, 
+		CvSplineApprox1D, CpSplineApprox1D, GammaSplineApprox1D, kSplineApprox1D );
 
 
 solver = SOLVER2D(
@@ -15,7 +18,7 @@ solver = SOLVER2D(
 
 solControls = CONTROLS(
 	0.1, #CFL
-	1e-8, ##5.0e-9, # time step, 
+	2.5e-8, ##5.0e-9, # time step, 
 	0, # fixed timeStepMethod (1 - adaptive)
 	0.0,  # actual physical time to start simulation
 	0.05,  # actual physical time to stop simulation 
@@ -53,7 +56,7 @@ dynControls.globalPath = pwd();
 
 
 output = outputCONTROLS(
-	500, #verbosity::Int8;  
+	1000, #verbosity::Int8;  
 	"Time[s]\t Tau[s]\t Resid1\t Resid2\t Resid3\t Resid4\t CPUtime [s]", 
 	0, #saveResiduals::Int8;
 	0, #saveResults::Int8; 

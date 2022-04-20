@@ -7,6 +7,7 @@ using WriteVTK;
 using CPUTime;
 using DelimitedFiles;
 using Printf
+using Dierckx
 using BSON: @load
 using BSON: @save
 using SharedArrays;
@@ -119,6 +120,10 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	UconsCellsOldX = zeros(Float64,testMesh.nCells,4);
 	UconsNodesOldX = zeros(Float64,testMesh.nNodes,4);
 	UconsCellsNewX = zeros(Float64,testMesh.nCells,4);
+	
+	UconsCellsNewTmpX1 = zeros(Float64,testMesh.nCells,4);
+	UconsCellsNewTmpX2 = zeros(Float64,testMesh.nCells,4);
+	UconsCellsNewTmpX3 = zeros(Float64,testMesh.nCells,4);
 		
 	UConsDiffCellsX = zeros(Float64,testMesh.nCells,4);
 	UConsDiffNodesX = zeros(Float64,testMesh.nNodes,4);
@@ -213,21 +218,22 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	
 	
 	
-	maxEdge,id = findmax(testMesh.HX);
+	#maxEdge,id = findmax(testMesh.HX);
 	
 	# dynControls.tau = 0.0;
 	
-	# for i = 1:testMesh.nCells
+	for i = 1:testMesh.nCells
 		
 		# localTau[i] = solControls.CFL*testMesh.HX[i]*testMesh.HX[i]/( *testMesh.HX[i]*testfields2d.VMAXCells[i] + 2.0*thermoX.Gamma/thermoX.Pr * viscfields2d.artViscosityCells[i]/testfields2d.densityCells[i]);
 		
-		# if localTau[i] >dynControls.tau
-			# dynControls.tau = localTau[i];
-		# end
+		testfields2d.localCFLCells[i] = min(solControls.CFL*0.5*testMesh.HX[i]/testfields2d.VMAXCells[i], 
+								testMesh.HX[i]*testMesh.HX[i]*0.25*testfields2d.densityCells[i]/viscfields2d.artViscosityCells[i]);
 	
-	# end	
+	end	
 	
 	
+	#minTimeStep,id = findmax(testfields2d.localCFLCells);
+	#dynControls.tau = minTimeStep;
 
 	dt::Float64 =  solControls.dt;  
 	# @everywhere dtX = $dt; 
@@ -254,15 +260,16 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			
 			
 			# PROPAGATE STAGE: 
-			(dynControls.velmax,id) = findmax(testfields2d.VMAXCells);
+			#(dynControls.velmax,id) = findmax(testfields2d.VMAXCells);
 			# #dynControls.tau = solControls.CFL * testMesh.maxEdgeLength/(max(dynControls.velmax,1.0e-6)); !!!!
-			dynControls.tau = solControls.CFL * maxEdge/(max(dynControls.velmax,1.0e-6));
+			#dynControls.tau = solControls.CFL * maxEdge/(max(dynControls.velmax,1.0e-6));
+			
+			(dynControls.tau,id) = findmin(testfields2d.localCFLCells);
 		
 			
 			if (useArtViscoistyDapming)
 			
-				calcArtificialViscositySA( cellsThreads, testMesh, thermo, testfields2d, viscfields2d);
-					
+				calcArtificialViscositySA( cellsThreads, testMesh, thermo, testfields2d, viscfields2d);					
 				calcDiffTerm(cellsThreads, testMesh, testfields2d, viscfields2d, thermo, UconsNodesOldX, UConsDiffCellsX, UConsDiffNodesX, localDampCellsX);
 			
 			end
@@ -270,11 +277,28 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 				
 			## Explicit Euler first-order	
 			calcOneStage(1.0, solControls.dt, dynControls.flowTime, testMesh , testfields2d, thermo, cellsThreads,  UconsCellsOldX, iFLUXX, UConsDiffCellsX,  UconsCellsNewX);
+					
+			## RK3-TVD
+			# calcOneStage(1.0, solControls.dt, dynControls.flowTime, testMesh , testfields2d, thermo, cellsThreads,  UconsCellsOldX, iFLUXX, UConsDiffCellsX,  UconsCellsNewTmpX1);
+			# calcOneStage(1.0, solControls.dt, dynControls.flowTime, testMesh , testfields2d, thermo, cellsThreads,  UconsCellsNewTmpX1, iFLUXX, UConsDiffCellsX,  UconsCellsNewTmpX2);
 			
-			#doExplicitRK3TVD(1.0, dtX, testMeshDistrX , testfields2dX, thermoX, cellsThreadsX,  UconsCellsOldX, iFLUXX,  UConsDiffCellsX, 
-			#   UconsCellsNew1X,UconsCellsNew2X,UconsCellsNew3X,UconsCellsNewX);
-			
+			# Threads.@threads for p in 1:Threads.nthreads()			
+	
+				# beginCell::Int32 = cellsThreads[p,1];
+				# endCell::Int32 = cellsThreads[p,2];
+				# #println("worker: ",p,"\tbegin cell: ",beginCell,"\tend cell: ", endCell);
+				
+				# for i=beginCell:endCell
+					# UconsCellsNewTmpX3[i,1] = 0.75*UconsCellsOldX[i,1]+0.25*UconsCellsNewTmpX2[i,1];
+					# UconsCellsNewTmpX3[i,2] = 0.75*UconsCellsOldX[i,2]+0.25*UconsCellsNewTmpX2[i,2];
+					# UconsCellsNewTmpX3[i,3] = 0.75*UconsCellsOldX[i,3]+0.25*UconsCellsNewTmpX2[i,3];
+					# UconsCellsNewTmpX3[i,4] = 0.75*UconsCellsOldX[i,4]+0.25*UconsCellsNewTmpX2[i,4];
+				# end
+		
+			# end
 						
+			# calcOneStage(1.0, solControls.dt, dynControls.flowTime, testMesh , testfields2d, thermo, cellsThreads,  UconsCellsNewTmpX3, iFLUXX, UConsDiffCellsX,  UconsCellsNewX);
+			# end RK3-TVD
 			
 			#@sync @distributed for p in workers()
 			Threads.@threads for p in 1:Threads.nthreads()			
@@ -284,7 +308,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 				#println("worker: ",p,"\tbegin cell: ",beginCell,"\tend cell: ", endCell);
 														
 				#updateVariablesSA(beginCell, endCell, thermo.Gamma,  UconsCellsNewX, UconsCellsOldX, DeltaX, testfields2d);
-				updateVariablesSA(beginCell, endCell, thermo,  UconsCellsNewX, UconsCellsOldX, DeltaX, testfields2d);
+				updateVariablesSA(beginCell, endCell, solControls.CFL,  thermo,  UconsCellsNewX, UconsCellsOldX, DeltaX, testMesh, testfields2d, viscfields2d);
 		
 			end
 			

@@ -40,6 +40,10 @@ end
 	aSoundCells::Array{Float64,1}
 	VMAXCells::Array{Float64,1}
 	temperatureCells::Array{Float64,1}
+	gammaCells::Array{Float64,1}
+	kCells::Array{Float64,1}
+	localCFLCells::Array{Float64,1}
+	
 
 	densityNodes::Array{Float64,1}
 	UxNodes::Array{Float64,1}

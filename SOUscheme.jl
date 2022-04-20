@@ -97,18 +97,14 @@
 			
 		end
 		
-		
-		# UconsCellsNew[i,1] = ( UConsCellsOld[i,1] - FLUXES[i,1]*bettaKJ*dt*testMesh.Z[i] + bettaKJ*dt*UconsDiffTerm[i,1] );
-		# UconsCellsNew[i,2] = ( UConsCellsOld[i,2] - FLUXES[i,2]*bettaKJ*dt*testMesh.Z[i] + bettaKJ*dt*UconsDiffTerm[i,2] );
-		# UconsCellsNew[i,3] = ( UConsCellsOld[i,3] - FLUXES[i,3]*bettaKJ*dt*testMesh.Z[i] + bettaKJ*dt*UconsDiffTerm[i,3] );
-		# UconsCellsNew[i,4] = ( UConsCellsOld[i,4] - FLUXES[i,4]*bettaKJ*dt*testMesh.Z[i] + bettaKJ*dt*UconsDiffTerm[i,4] );
-      
+		      
 		Rarea::Float64 = 1.0/testMesh.cell_areas[i];
 	  
   		UconsCellsNew[i,1] = ( UConsCellsOld[i,1] - FLUXES[i,1]*bettaKJ*dt*Rarea + bettaKJ*dt*UconsDiffTerm[i,1] );
 		UconsCellsNew[i,2] = ( UConsCellsOld[i,2] - FLUXES[i,2]*bettaKJ*dt*Rarea + bettaKJ*dt*UconsDiffTerm[i,2] );
 		UconsCellsNew[i,3] = ( UConsCellsOld[i,3] - FLUXES[i,3]*bettaKJ*dt*Rarea + bettaKJ*dt*UconsDiffTerm[i,3] );
 		UconsCellsNew[i,4] = ( UConsCellsOld[i,4] - FLUXES[i,4]*bettaKJ*dt*Rarea + bettaKJ*dt*UconsDiffTerm[i,4] );
+
 
 	  
    

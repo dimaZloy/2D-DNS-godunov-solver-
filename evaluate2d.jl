@@ -51,12 +51,14 @@ end
 
 
 @everywhere function updateVariablesSA(
-	beginCell::Int32,endCell::Int32,
+	beginCell::Int32,endCell::Int32, CFL::Float64,
 	thermo::THERMOPHYSICS, ## Gamma::Float64,
 	 UconsCellsNew::Array{Float64,2},
 	 UconsCellsOld::Array{Float64,2},
 	 Delta::Array{Float64,2},
-	 testfields2d::fields2d)
+	 testMesh::mesh2d_Int32,
+	 testfields2d::fields2d,
+	 viscfields2d::viscousFields2d)
 	
 	for i=beginCell:endCell
 	
@@ -79,6 +81,13 @@ end
 		testfields2d.aSoundCells[i] = sqrt( thermo.Gamma * testfields2d.pressureCells[i]/testfields2d.densityCells[i] );
 		testfields2d.VMAXCells[i]  = sqrt( testfields2d.UxCells[i]*testfields2d.UxCells[i] + testfields2d.UyCells[i]*testfields2d.UyCells[i] ) + testfields2d.aSoundCells[i];
 		
+		testfields2d.kCells[i] 	= thermo.kFromT(testfields2d.temperatureCells[i]);
+		testfields2d.gammaCells[i] = thermo.gammaFromT(testfields2d.temperatureCells[i]);
+		
+		
+		testfields2d.localCFLCells[i] = min(CFL*0.5*testMesh.HX[i]/testfields2d.VMAXCells[i], 
+								testMesh.HX[i]*testMesh.HX[i]*0.25*testfields2d.densityCells[i]/viscfields2d.artViscosityCells[i]);
+				
 		Delta[i,1] = UconsCellsNew[i,1] - UconsCellsOld[i,1];
 		Delta[i,2] = UconsCellsNew[i,2] - UconsCellsOld[i,2];
 		Delta[i,3] = UconsCellsNew[i,3] - UconsCellsOld[i,3];
@@ -178,7 +187,7 @@ end
 			cla();
 			
 			maxMu,id = findmax(testFieldsViscous.artViscosityNodes);
-			minMu,id = findmax(testFieldsViscous.artViscosityNodes);
+			minMu,id = findmin(testFieldsViscous.artViscosityNodes);
 			
 			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFieldsViscous.artViscosityNodes, 25, vmin = minMu, vmax=maxMu);
 			#colorbar();
