@@ -18,10 +18,10 @@ solver = SOLVER2D(
 
 solControls = CONTROLS(
 	0.1, #CFL
-	2.5e-8, ##5.0e-9, # time step, 
+	1e-5, ##5.0e-9, # time step, 
 	0, # fixed timeStepMethod (1 - adaptive)
 	0.0,  # actual physical time to start simulation
-	0.05,  # actual physical time to stop simulation 
+	0.1,  # actual physical time to stop simulation 
 	1, # flag to plot residuals
 	1, # flag to constrain density
 	0.01, # minDensityConstrained::Float64;
@@ -56,7 +56,7 @@ dynControls.globalPath = pwd();
 
 
 output = outputCONTROLS(
-	1000, #verbosity::Int8;  
+	100, #verbosity::Int8;  
 	"Time[s]\t Tau[s]\t Resid1\t Resid2\t Resid3\t Resid4\t CPUtime [s]", 
 	0, #saveResiduals::Int8;
 	0, #saveResults::Int8; 

@@ -36,7 +36,7 @@ include("calcDiv.jl");
 include("calcArtViscosity.jl");
 include("calcDiffterm.jl");
 
-include("bcInviscidWall.jl"); 
+#include("bcInviscidWall.jl"); ## depricated
 include("boundaryConditions2d.jl"); 
 
 include("initfields2d.jl");
@@ -76,6 +76,38 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	flag2loadPreviousResults = false;
 
 	testMesh = readMesh2dHDF5(pname);
+	
+	
+	#display(testMesh.bc_data)
+	
+	# figure(222)
+	# clf();
+	# for i = 1:size(testMesh.bc_indexes,1)
+
+		# idb = testMesh.bc_data[i,1]; ## cell id 
+		# idv1 = testMesh.bc_data[i,2]; ##  cell type		
+		# idv2 = testMesh.bc_data[i,3]; ## node id
+					
+		# p2 = testMesh.mesh_connectivity[idb,3+idv2];
+	
+		# if (testMesh.bc_indexes[i] == -4); 
+			# plot(testMesh.xNodes[p2],testMesh.yNodes[p2],"ok");			
+
+		# elseif (testMesh.bc_indexes[i] == -3); 
+					
+			# plot(testMesh.xNodes[p2],testMesh.yNodes[p2],"og");
+			
+		# elseif (testMesh.bc_indexes[i] == -2); 
+			# plot(testMesh.xNodes[p2],testMesh.yNodes[p2],"or");			
+			
+		# elseif (testMesh.bc_indexes[i] == -1); 
+			# plot(testMesh.xNodes[p2],testMesh.yNodes[p2],"ob");			
+			
+		# end
+	# end
+	
+	#pause(10000)
+	
 	
 	# display(testMesh.cells2nodes)
 	# display( findall(x->x==0, testMesh.cells2nodes) )
@@ -139,18 +171,18 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	localDampCells  = zeros(Float64,testMesh.nCells);
 
 	for i = 1:testMesh.nCells
-		rad::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1] + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2]);
-		localDampCells[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
+		##rad::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1] + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2]);
+		##localDampCells[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
+		localDampCells[i] = 1.0;
 		
 	end
 
 	
 	for i = 1:testMesh.nNodes
-		#rad::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1] + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2]);
 		
-		rad::Float64 = sqrt(testMesh.xNodes[i]*testMesh.xNodes[i] + testMesh.yNodes[i]*testMesh.yNodes[i]);
-		localDampNodes[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
-		
+		#rad::Float64 = sqrt(testMesh.xNodes[i]*testMesh.xNodes[i] + testMesh.yNodes[i]*testMesh.yNodes[i]);
+		#localDampNodes[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
+		localDampNodes[i] = 1.0;
 	end
 	
 	
@@ -327,10 +359,25 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 		
 			 end
 			
-			
-			
-			
-			# cells2nodesSolutionReconstructionWithStencilsSerial(testMesh,testfields2d, viscfields2d, UconsCellsOldX,  UconsNodesOldX);
+		
+			for i = 1:size(testMesh.bc_indexes,1)
+				if (testMesh.bc_indexes[i] == -3); 
+					
+					idb = testMesh.bc_data[i,1]; ## cell id 
+					idv1 = testMesh.bc_data[i,2]; ##  cell type		
+					idv2 = testMesh.bc_data[i,3]; ## node id
+	
+					
+					p2 = testMesh.mesh_connectivity[idb,3+idv2];
+				
+					UconsNodesOldX[p2,1] = 0.0;
+					UconsNodesOldX[p2,2] = 0.0;
+					UconsNodesOldX[p2,3] = 0.0;
+					UconsNodesOldX[p2,4] = 0.0;
+				
+					
+				end
+			end
 								
 	
 			(dynControls.rhoMax,id) = findmax(testfields2d.densityCells);
@@ -450,8 +497,10 @@ end
 
 
 #godunov2dthreads("cyl2d_supersonic1",  "cyl2d_supersonic1", false); 
-godunov2dthreads("cyl2d_supersonic1_BL",  "cyl2d_supersonic1_BL", false); 
+#godunov2dthreads("cyl2d_supersonic1_BL",  "cyl2d_supersonic1_BL", false); 
 #godunov2dthreads("cyl2d_supersonic1_BL_test",  "cyl2d_supersonic1_BL_test", false); 
+
+godunov2dthreads("oblickShock2dl00F1n",  "oblickShock2dl00F1n", false); 
 
 
 

@@ -136,11 +136,10 @@ function createFields2d(testMesh::mesh2d_Int32, thermo::THERMOPHYSICS)
 
 	for i=1:testMesh.nCells
 
-		densityCells[i] 	= 1.1766;
-		UxCells[i] 			= 1232.6445;
-		#UxCells[i] 			= 100.0;
+		densityCells[i] 	= 1.0;
+		UxCells[i] 			= 290.0;
 		UyCells[i] 			= 0.0; 
-		pressureCells[i] 	= 101325.0;
+		pressureCells[i] 	= 7143.0;
 		temperatureCells[i] 	= pressureCells[i]/densityCells[i]/ thermo.RGAS;
 		kCells[i] 	= thermo.kFromT(temperatureCells[i]);
 		gammaCells[i] = thermo.gammaFromT(temperatureCells[i]);
