@@ -11,6 +11,13 @@
 	dVdxCells::Array{Float64,1}
 	dVdyCells::Array{Float64,1}
 	
+	# dUdxNodes::Array{Float64,1}
+	# dUdyNodes::Array{Float64,1}
+	
+	# dVdxNodes::Array{Float64,1}
+	# dVdyNodes::Array{Float64,1}
+	
+	
 	laplasUCuCells::Array{Float64,1}
 	laplasUCvCells::Array{Float64,1}
 	laplasUCeCells::Array{Float64,1}
@@ -20,8 +27,18 @@
 	
 	cdVdxCells::Array{Float64,1}
 	cdVdyCells::Array{Float64,1}
+	
 	cdEdxCells::Array{Float64,1}
 	cdEdyCells::Array{Float64,1}
+	
+	cdUdxNodes::Array{Float64,1}
+	cdUdyNodes::Array{Float64,1}
+	
+	cdVdxNodes::Array{Float64,1}
+	cdVdyNodes::Array{Float64,1}
+	
+	cdEdxNodes::Array{Float64,1}
+	cdEdyNodes::Array{Float64,1}
 
 end
 

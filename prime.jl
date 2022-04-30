@@ -17,7 +17,7 @@ using ProfileView;
 
 
 include("primeObjects.jl");
-include("sutherland.jl"); # calc air viscosity using Sutherland law
+include("viscosityModels.jl"); # calc air viscosity using Sutherland law
 include("thermo.jl"); #setup thermodynamics
 include("utilsIO.jl");
 #include("RoeFlux2d.jl")
@@ -171,8 +171,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	localDampCells  = zeros(Float64,testMesh.nCells);
 
 	for i = 1:testMesh.nCells
-		##rad::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1] + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2]);
-		##localDampCells[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
+		# rad::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1] + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2]);
+		# localDampCells[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
 		localDampCells[i] = 1.0;
 		
 	end
@@ -180,8 +180,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	
 	for i = 1:testMesh.nNodes
 		
-		#rad::Float64 = sqrt(testMesh.xNodes[i]*testMesh.xNodes[i] + testMesh.yNodes[i]*testMesh.yNodes[i]);
-		#localDampNodes[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
+		# rad::Float64 = sqrt(testMesh.xNodes[i]*testMesh.xNodes[i] + testMesh.yNodes[i]*testMesh.yNodes[i]);
+		# localDampNodes[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
 		localDampNodes[i] = 1.0;
 	end
 	
@@ -301,8 +301,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			
 			if (useArtViscoistyDapming)
 			
-				calcArtificialViscositySA( cellsThreads, testMesh, thermo, testfields2d, viscfields2d);					
-				calcDiffTerm(cellsThreads, testMesh, testfields2d, viscfields2d, thermo, UconsNodesOldX, UConsDiffCellsX, UConsDiffNodesX, localDampCellsX);
+				calcArtificialViscositySA( cellsThreads, testMesh, thermo, testfields2d, viscfields2d,  UconsNodesOldX);					
+				calcDiffTerm(cellsThreads, nodesThreads,  testMesh, testfields2d, viscfields2d, thermo, UconsNodesOldX, UConsDiffCellsX, UConsDiffNodesX, localDampCellsX);
 			
 			end
 	
@@ -499,9 +499,9 @@ end
 #godunov2dthreads("cyl2d_supersonic1",  "cyl2d_supersonic1", false); 
 #godunov2dthreads("cyl2d_supersonic1_BL",  "cyl2d_supersonic1_BL", false); 
 #godunov2dthreads("cyl2d_supersonic1_BL_test",  "cyl2d_supersonic1_BL_test", false); 
+#godunov2dthreads("oblickShock2dl00F1n",  "oblickShock2dl00F1n", false); 
 
-godunov2dthreads("oblickShock2dl00F1n",  "oblickShock2dl00F1n", false); 
-
+godunov2dthreads("swlbl00",  "swlbl00", false); 
 
 
 

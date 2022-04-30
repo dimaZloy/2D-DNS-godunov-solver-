@@ -79,17 +79,30 @@ function createViscousFields2d(nCells::Int64, nNodes::Int64)::viscousFields2d
 	dVdxCells = zeros(Float64,nCells);
 	dVdyCells = zeros(Float64,nCells);
 	
+	# dUdxNodes = zeros(Float64,nNodes);
+	# dUdyNodes = zeros(Float64,nNodes);
+	
+	# dVdxNodes = zeros(Float64,nNodes);
+	# dVdyNodes = zeros(Float64,nNodes);
+	
 	laplasUCuCells = zeros(Float64,nCells);
 	laplasUCvCells = zeros(Float64,nCells);
 	laplasUCeCells = zeros(Float64,nCells);
 	
 	cdUdxCells = zeros(Float64,nCells);
 	cdUdyCells = zeros(Float64,nCells);
-	
 	cdVdxCells = zeros(Float64,nCells);
 	cdVdyCells = zeros(Float64,nCells);
 	cdEdxCells = zeros(Float64,nCells);
 	cdEdyCells = zeros(Float64,nCells);
+	
+	cdUdxNodes = zeros(Float64,nNodes);
+	cdUdyNodes = zeros(Float64,nNodes);
+	cdVdxNodes = zeros(Float64,nNodes);
+	cdVdyNodes = zeros(Float64,nNodes);
+	cdEdxNodes = zeros(Float64,nNodes);
+	cdEdyNodes = zeros(Float64,nNodes);
+	
 	
 	viscous2d = viscousFields2d(
 		artViscosityCells,
@@ -106,7 +119,14 @@ function createViscousFields2d(nCells::Int64, nNodes::Int64)::viscousFields2d
 		cdVdxCells,
 		cdVdyCells,
 		cdEdxCells,
-		cdEdyCells
+		cdEdyCells,
+		cdUdxNodes,
+		cdUdyNodes,
+		cdVdxNodes,
+		cdVdyNodes,
+		cdEdxNodes,
+		cdEdyNodes
+		
 	);
 
 	return viscous2d; 
@@ -136,10 +156,10 @@ function createFields2d(testMesh::mesh2d_Int32, thermo::THERMOPHYSICS)
 
 	for i=1:testMesh.nCells
 
-		densityCells[i] 	= 1.0;
-		UxCells[i] 			= 290.0;
+		densityCells[i] 	= 0.6380;
+		UxCells[i] 			= 712.145;
 		UyCells[i] 			= 0.0; 
-		pressureCells[i] 	= 7143.0;
+		pressureCells[i] 	= 50000.0;
 		temperatureCells[i] 	= pressureCells[i]/densityCells[i]/ thermo.RGAS;
 		kCells[i] 	= thermo.kFromT(temperatureCells[i]);
 		gammaCells[i] = thermo.gammaFromT(temperatureCells[i]);

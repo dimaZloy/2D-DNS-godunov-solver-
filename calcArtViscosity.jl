@@ -3,7 +3,7 @@
 
 
 @everywhere @inline function calcArtificialViscositySA( cellsThreadsX::Array{Int32,2}, testMesh::mesh2d_Int32, 
-    thermoX::THERMOPHYSICS, testfields2d::fields2d, viscfields2dX::viscousFields2d)
+    thermoX::THERMOPHYSICS, testfields2d::fields2d, viscfields2dX::viscousFields2d, UCNodes::Array{Float64,2})
 	
 	Threads.@threads for p in 1:Threads.nthreads()
 	
@@ -12,12 +12,9 @@
 						
 		nodesGradientReconstructionFastPerThread22(beginCell, endCell, testMesh, testfields2d.UxNodes, viscfields2dX.dUdxCells,viscfields2dX.dUdyCells);
 		nodesGradientReconstructionFastPerThread22(beginCell, endCell, testMesh, testfields2d.UyNodes, viscfields2dX.dVdxCells,viscfields2dX.dVdyCells);
-
-		# nodesGradientReconstructionFastPerThread33(beginCell, endCell, testMesh, testfields2d.UxNodes, viscfields2dX.dUdxCells,viscfields2dX.dUdyCells);
-		# nodesGradientReconstructionFastPerThread33(beginCell, endCell, testMesh, testfields2d.UyNodes, viscfields2dX.dVdxCells,viscfields2dX.dVdyCells);
-				
+		
+		nodesGradientReconstructionFastPerThread22UCons(beginCell,endCell, testMesh, UCNodes, viscfields2dX);	
 		calcDynamicViscosityPerThread( beginCell, endCell, testMesh, testfields2d, viscfields2dX, thermoX.RGAS);
-		#calcArtificialViscosityPerThread( beginCell, endCell, testMesh, testfields2d, viscfields2dX);
 					
 	end
 	
@@ -32,10 +29,9 @@ end
 	 
      for i = beginCell:endCell
 	 
-		#T::Float64 = testfields2d.pressureCells[i]/testfields2d.densityCells[i]/Rgas;     
-		#viscfields2dX.artViscosityCells[i] = calcSutherlandViscosityOF(T);
 		
 		viscfields2dX.artViscosityCells[i] = calcSutherlandViscosityOF(testfields2d.temperatureCells[i]); 
+		#viscfields2dX.artViscosityCells[i] = calcConstViscosity(); 
 		
 		
 		

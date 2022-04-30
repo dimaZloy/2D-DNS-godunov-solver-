@@ -18,29 +18,29 @@ end
 
 
 
-@everywhere  @inline function cells2nodesSolutionReconstructionWithStencilsSA(
-		testMesh::mesh2d_Int32,cell_solution::SharedArray{Float64,1} ) ::Array{Float64,1}
+# @everywhere  @inline function cells2nodesSolutionReconstructionWithStencilsSA(
+		# testMesh::mesh2d_Int32,cell_solution::SharedArray{Float64,1} ) ::Array{Float64,1}
 
-node_solution = zeros(Float64,testMesh.nNodes); 
+# node_solution = zeros(Float64,testMesh.nNodes); 
 
-for J=1:testMesh.nNodes
-	det::Float64 = 0.0;
-	for j = 1:testMesh.nNeibCells
-		neibCell::Int32 = testMesh.cell_clusters[J,j]; 
-		if (neibCell !=0)
-			wi::Float64 = testMesh.node_stencils[J,j];
-			node_solution[J] += cell_solution[neibCell]*wi;
-			det += wi;
-		end
-	end
-	if (det!=0)
-		node_solution[J] = node_solution[J]/det; 
-	end
-end
+# for J=1:testMesh.nNodes
+	# det::Float64 = 0.0;
+	# for j = 1:testMesh.nNeibCells
+		# neibCell::Int32 = testMesh.cell_clusters[J,j]; 
+		# if (neibCell !=0)
+			# wi::Float64 = testMesh.node_stencils[J,j];
+			# node_solution[J] += cell_solution[neibCell]*wi;
+			# det += wi;
+		# end
+	# end
+	# if (det!=0)
+		# node_solution[J] = node_solution[J]/det; 
+	# end
+# end
 
-return node_solution;	
+# return node_solution;	
 
-end
+# end
 
 
 @everywhere  @inline function cells2nodesSolutionReconstructionWithStencilsSA(testMesh::mesh2d_Int32,cell_solution::Array{Float64,1}, node_solution::Array{Float64,1} )
@@ -420,3 +420,47 @@ end
 
 
 # end
+
+
+@everywhere @inline function cells2nodesSolutionReconstructionWithStencilsScalarField(beginNode::Int32, endNode::Int32,
+	testMesh::mesh2d_Int32, cell_solution::Array{Float64,1}, node_solution::Array{Float64,1})
+
+			
+			
+@fastmath	for J= beginNode:endNode
+			
+				det::Float64 = 0.0;
+				
+				nNeibCells = size(testMesh.cell_clusters,2);
+								
+				node_solution[J] = 0.0;
+				
+				
+				for j = 1:nNeibCells
+				
+					neibCell::Int32 = testMesh.cell_clusters[J,j]; 
+					
+					if (neibCell !=0)
+						wi::Float64 = testMesh.node_stencils[J,j];
+						
+						
+						node_solution[J] 					+= cell_solution[neibCell]*wi;
+						
+						
+						
+						det += wi;
+					end
+				end
+				
+				if (det!=0)
+				
+				
+					node_solution[J] = node_solution[J]/det; 
+				end
+				
+				
+			end ## for
+
+
+
+end

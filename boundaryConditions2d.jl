@@ -4,16 +4,16 @@
 @inline function ComputeUPhysFromBoundaries(i::Int32,k::Int32,neib_cell::Int32, 
       cur_cell::Array{Float64,1}, nx::Float64,ny::Float64, y::Float64, gamma::Float64, t::Float64, bnd_cell::Array{Float64,1} )
 
-		
-		if (neib_cell == -1) #top 
 
-            bnd_cell[1] = 1.7;
-            bnd_cell[2] = 263.72;
-            bnd_cell[3] = -51.62;
-            bnd_cell[4] = 15282.0;
+	if (neib_cell == -1) #inlet
+
+            bnd_cell[1] = 0.6380;
+            bnd_cell[2] = 712.145;
+            bnd_cell[3] = 0.0;
+            bnd_cell[4] = 50000.0;
 
 		
-		elseif (neib_cell == -2) #right 
+		elseif (neib_cell == -2) #outlet 
 
 			bnd_cell[1] = cur_cell[1];	
 			bnd_cell[2] = cur_cell[2];	
@@ -21,25 +21,60 @@
 			bnd_cell[4] = cur_cell[4];	
 			
 
-		elseif (neib_cell == -3) #bottom 
+		elseif (neib_cell == -3) #wall
 
 	 	   	#updateVelocityFromCurvWall(i,k,cur_cell,nx,ny,bnd_cell);
 			
-			 bnd_cell[1] = cur_cell[1];
-             bnd_cell[2] = 0.0; ##-cur_cell[2];
-             bnd_cell[3] = 0.0; ##-cur_cell[3];
-             bnd_cell[4] = cur_cell[4];
+			bnd_cell[1] = cur_cell[1];
+            bnd_cell[2] = 0.0; ##-cur_cell[2];
+            bnd_cell[3] = 0.0; ##-cur_cell[3];
+            bnd_cell[4] = cur_cell[4];
 
-        
-		elseif (neib_cell == -4) # left boundary 
+		elseif (neib_cell == -4) #slip-wall
 
-            bnd_cell[1] = 1.0;
-            bnd_cell[2] = 290.0;
-            bnd_cell[3] = 0.0;
-            bnd_cell[4] = 7143;
-
+	 	   	updateVelocityFromCurvWall(i,k,cur_cell,nx,ny,bnd_cell);
+			
 					
 		end	
+		
+		
+		## laminar BL ans incidend shock wave interaction
+		
+		# if (neib_cell == -1) #top 
+
+            # bnd_cell[1] = 1.7;
+            # bnd_cell[2] = 263.72;
+            # bnd_cell[3] = -51.62;
+            # bnd_cell[4] = 15282.0;
+
+		
+		# elseif (neib_cell == -2) #right 
+
+			# bnd_cell[1] = cur_cell[1];	
+			# bnd_cell[2] = cur_cell[2];	
+			# bnd_cell[3] = cur_cell[3];	
+			# bnd_cell[4] = cur_cell[4];	
+			
+
+		# elseif (neib_cell == -3) #bottom 
+
+	 	   	# #updateVelocityFromCurvWall(i,k,cur_cell,nx,ny,bnd_cell);
+			
+			 # bnd_cell[1] = cur_cell[1];
+             # bnd_cell[2] = 0.0; ##-cur_cell[2];
+             # bnd_cell[3] = 0.0; ##-cur_cell[3];
+             # bnd_cell[4] = cur_cell[4];
+
+        
+		# elseif (neib_cell == -4) # left boundary 
+
+            # bnd_cell[1] = 1.0;
+            # bnd_cell[2] = 290.0;
+            # bnd_cell[3] = 0.0;
+            # bnd_cell[4] = 7143;
+
+					
+		# end	
 
 end
 
