@@ -86,6 +86,7 @@ end
 	cell_nodes_X::Array{Float64,2} 			## [nCellsx4]
 	cell_nodes_Y::Array{Float64,2} 			## [nCellsx4]
 	cell_mid_points::Array{Float64,2} 		## [nCellsx2]
+	cell_wall_distances::Array{Float64,2} 	## [nCellsx4]
 	cell_areas::Array{Float64,1} 			## [nCellsx1]
 	HX::Array{Float64,1}
 	cell_edges_Nx::Array{Float64,2} 		## [nCellsx4]

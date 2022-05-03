@@ -15,6 +15,7 @@ using SharedArrays;
 using HDF5;
 using ProfileView;
 
+include("exp.jl"); 
 
 include("primeObjects.jl");
 include("viscosityModels.jl"); # calc air viscosity using Sutherland law
@@ -76,6 +77,35 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	flag2loadPreviousResults = false;
 
 	testMesh = readMesh2dHDF5(pname);
+	
+	wall_indx = findall(x->x==-3,testMesh.bc_indexes)
+	
+	#display(wall_indx);
+
+	nWalls = length(wall_indx)
+	#display(nWalls);
+	#pause(10000)
+	wall_Nodes = zeros(Int32,nWalls)
+	cf_Nodes = zeros(Float64,nWalls)
+	wall_Distances = zeros(Float64,nWalls);
+	wall_Cells = zeros(Int32,nWalls);
+	
+	for i = 1:nWalls
+		c = wall_indx[i];
+		idb = testMesh.bc_data[c,1]; ## cell id 
+		idv1 = testMesh.bc_data[c,2]; ##  cell type		
+		idv2 = testMesh.bc_data[c,3]; ## node id
+					
+		p2 = testMesh.mesh_connectivity[idb,3+idv2];
+		wall_Nodes[i] = p2;
+		wall_Distances[i] = testMesh.cell_wall_distances[idb,idv2];
+		wall_Cells[i] = idb;
+		
+	end
+	
+	# display(wall_Nodes)
+	# pause(10000)
+	
 	
 	
 	#display(testMesh.bc_data)
@@ -206,9 +236,16 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 		
 	 end
 
-	
+
+	exp_pressure[:,1] = exp_pressure[:,1]./400*2.3*8e-2;	
+	exp_cf[:,1] = exp_cf[:,1]./400*2.3*8e-2;	
 
 	figure(101)
+	# clf()
+	# plot(exp_pressure[:,1],exp_pressure[:,2], "or",label="exp");
+	# plot(testMesh.xNodes[wall_Nodes],testfields2d.pressureNodes[wall_Nodes]./50000.0, "sk");
+	# pause(10000)
+	
 	
 
 	timeVector = [];
@@ -360,6 +397,26 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			 end
 			
 		
+			
+								
+	
+			(dynControls.rhoMax,id) = findmax(testfields2d.densityCells);
+			(dynControls.rhoMin,id) = findmin(testfields2d.densityCells);
+			
+
+			push!(timeVector, dynControls.flowTime); 
+			dynControls.curIter += 1; 
+			dynControls.verIter += 1;
+				
+			updateResidualSA(DeltaX, 
+				residualsVector1,residualsVector2,residualsVector3,residualsVector4, residualsVectorMax,  
+				convergenceCriteria, dynControls);
+			
+			
+			updateOutputSA(timeVector,residualsVector1,residualsVector2,residualsVector3,residualsVector4, residualsVectorMax, 
+				testMesh, testfields2d, viscfields2d,  solControls, output, dynControls, solInst, wall_Nodes, wall_Distances, wall_Cells);
+	
+	
 			for i = 1:size(testMesh.bc_indexes,1)
 				if (testMesh.bc_indexes[i] == -3); 
 					
@@ -378,27 +435,6 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 					
 				end
 			end
-								
-	
-			(dynControls.rhoMax,id) = findmax(testfields2d.densityCells);
-			(dynControls.rhoMin,id) = findmin(testfields2d.densityCells);
-			
-
-			push!(timeVector, dynControls.flowTime); 
-			dynControls.curIter += 1; 
-			dynControls.verIter += 1;
-				
-			
-			
-			
-			updateResidualSA(DeltaX, 
-				residualsVector1,residualsVector2,residualsVector3,residualsVector4, residualsVectorMax,  
-				convergenceCriteria, dynControls);
-			
-			
-			updateOutputSA(timeVector,residualsVector1,residualsVector2,residualsVector3,residualsVector4, residualsVectorMax, 
-				testMesh, testfields2d, viscfields2d,  solControls, output, dynControls, solInst);
-	
 			
 			# EVALUATE STAGE:
 			

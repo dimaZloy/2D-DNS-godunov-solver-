@@ -123,7 +123,11 @@ end
 	solControls::CONTROLS,
 	output::outputCONTROLS,
 	dynControls::DYNAMICCONTROLS,
-	solInst::solutionCellsT)
+	solInst::solutionCellsT,
+	wallNodes::Vector{Int32},
+	wallDistances::Vector{Float64},
+	wallCells::Vector{Int32}
+	)
 
 	if (dynControls.verIter == output.verbosity)
 
@@ -187,20 +191,24 @@ end
 			subplot(3,1,2);	
 			cla();
 			
-			maxMu,id = findmax(testFieldsViscous.artViscosityNodes);
-			minMu,id = findmin(testFieldsViscous.artViscosityNodes);
 			
-			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFieldsViscous.artViscosityNodes, 25, vmin = minMu, vmax=maxMu);
-			#colorbar();
-			#tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, localDampNodes);
+			#plot(exp_pressure[:,1],exp_pressure[:,2], "or",label="exp",markersize = 4.0);
+			plot(testMesh.xNodes[wallNodes],testFields.pressureNodes[wallNodes]./50000.0, "sk",markersize = 2.0);
+			# maxMu,id = findmax(testFieldsViscous.artViscosityNodes);
+			# minMu,id = findmin(testFieldsViscous.artViscosityNodes);
+			
+			#tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFieldsViscous.artViscosityNodes, 25, vmin = minMu, vmax=maxMu);
+			#tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFieldsViscous.cdUdyNodes);
+			# tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, sqrt.(testFields.UxNodes.*testFields.UxNodes .+ testFields.UyNodes.*testFields.UyNodes));
+			# colorbar();
+			# #tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, localDampNodes);
+		
 			
 			
-			
-			set_cmap("jet");
-			xlabel("x");
-			ylabel("y");
-			title("Contours of Artificial viscosity");
-			axis("equal");
+			 xlabel("x");
+			 ylabel("p/pinf");
+			 title("p/Pinf");
+			# axis("equal");
 			
 			
 			
@@ -208,18 +216,40 @@ end
 			subplot(3,1,3);
 			cla();
 			
-			if (size(timeVector,1) >1)
-				plot(timeVector, residualsVector1./residualsVectorMax[1],"-r",label="continuity"); 
-				plot(timeVector, residualsVector2./residualsVectorMax[2],"-g",label="momentum ux"); 
-				plot(timeVector, residualsVector3./residualsVectorMax[3],"-b",label="momentum uy"); 
-				plot(timeVector, residualsVector4./residualsVectorMax[4],"-c",label="energy"); 
-			end
+	
+			cf_Nodes = zeros(Float64,length(wallNodes));
+		
 			
-			yscale("log");	
-			xlabel("flow time [s]");
-			ylabel("Res");
-			title("Residuals");
-			legend();
+			
+			 for i = 1:length(wallNodes)
+				node = wallNodes[i];
+				cell = wallCells[i];
+				
+				# #cf_Nodes[i] = 2.0/(0.5806*746.531*746.531)*testFieldsViscous.artViscosityNodes[z]*testFieldsViscous.cdUdyNodes[z];
+				cf_Nodes[i] = testFieldsViscous.artViscosityNodes[node]*testFields.UxCells[cell]/wallDistances[i];
+				
+			 end
+			
+			
+			#plot(exp_cf[:,1],exp_cf[:,2], "or",label="exp",markersize = 2.0);
+			plot(testMesh.xNodes[wallNodes],cf_Nodes, "sk",markersize = 2.0);
+			xlabel("x");
+			ylabel("Cf");
+			#title("p/Pinf");
+
+			
+			# if (size(timeVector,1) >1)
+				# plot(timeVector, residualsVector1./residualsVectorMax[1],"-r",label="continuity"); 
+				# plot(timeVector, residualsVector2./residualsVectorMax[2],"-g",label="momentum ux"); 
+				# plot(timeVector, residualsVector3./residualsVectorMax[3],"-b",label="momentum uy"); 
+				# plot(timeVector, residualsVector4./residualsVectorMax[4],"-c",label="energy"); 
+			# end
+			
+			# yscale("log");	
+			# xlabel("flow time [s]");
+			# ylabel("Res");
+			# title("Residuals");
+			# legend();
 			
 			pause(1.0e-5);
 			
