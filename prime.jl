@@ -87,6 +87,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	#pause(10000)
 	wall_Nodes = zeros(Int32,nWalls)
 	cf_Nodes = zeros(Float64,nWalls)
+	yPlus_Nodes = zeros(Float64,nWalls);
+
 	wall_Distances = zeros(Float64,nWalls);
 	wall_Cells = zeros(Int32,nWalls);
 	
@@ -313,6 +315,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	debug = true;	
 	useArtViscoistyDapming = true;
 
+
+
 	
 	println("Start calculations ...");
 	println(output.header);
@@ -414,7 +418,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			
 			
 			updateOutputSA(timeVector,residualsVector1,residualsVector2,residualsVector3,residualsVector4, residualsVectorMax, 
-				testMesh, testfields2d, viscfields2d,  solControls, output, dynControls, solInst, wall_Nodes, wall_Distances, wall_Cells);
+				testMesh, testfields2d, viscfields2d,  solControls, output, dynControls, solInst, 
+					wall_Nodes, wall_Distances, wall_Cells, cf_Nodes, yPlus_Nodes);
 	
 	
 			for i = 1:size(testMesh.bc_indexes,1)
@@ -512,13 +517,36 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			uyNodes[i] 			= testfields2d.UyNodes[i];
 			pNodes[i] 			= testfields2d.pressureNodes[i];
 		end
+		
+		for i = 1:size(testMesh.bc_indexes,1)
+			if (testMesh.bc_indexes[i] == -3); 
+					
+				idb = testMesh.bc_data[i,1]; ## cell id 
+				idv1 = testMesh.bc_data[i,2]; ##  cell type		
+				idv2 = testMesh.bc_data[i,3]; ## node id
+	
+				p2 = testMesh.mesh_connectivity[idb,3+idv2];
 				
+				uxNodes[p2] = 0.0;
+				uyNodes[p2] = 0.0;					
+			end
+		end
+		
+		
 		println("Saving  solution to  ", outputfile);
 			saveResults4VTK(outputfile, testMesh, rhoNodes, uxNodes, uyNodes, pNodes);
 			@save outputfile solInst
 		println("done ...  ");	
 		
-		 
+		println("Saving wall plots ... ")
+		open("wallData.txt","w") do io
+		
+		  for i = 1:nWalls	
+			print(io,testMesh.xNodes[wall_Nodes[i]],"\t", testfields2d.pressureNodes[ wall_Nodes[i] ], "\t", cf_Nodes[i],"\t",yPlus_Nodes[i],"\n")
+		  end
+		  
+		end
+		println("done ...  ");	 
 		 
 		
 	#end ## if debug

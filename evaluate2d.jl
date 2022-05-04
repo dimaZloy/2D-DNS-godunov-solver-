@@ -126,7 +126,9 @@ end
 	solInst::solutionCellsT,
 	wallNodes::Vector{Int32},
 	wallDistances::Vector{Float64},
-	wallCells::Vector{Int32}
+	wallCells::Vector{Int32},
+	cfNodes::Vector{Float64},
+	yPlusNodes::Vector{Float64}
 	)
 
 	if (dynControls.verIter == output.verbosity)
@@ -175,7 +177,7 @@ end
 
 
 			
-			subplot(3,1,1);	
+			subplot(3,2,1);	
 			cla();
 			
 			##tricontourf(testMesh.xNodes,testMesh.yNodes, triangles, densityF,pControls.nContours,vmin=pControls.rhoMINcont,vmax=pControls.rhoMAXcont);
@@ -188,7 +190,7 @@ end
 			title("Contours of density");
 			axis("equal");
 
-			subplot(3,1,2);	
+			subplot(3,2,2);	
 			cla();
 			
 			
@@ -204,7 +206,7 @@ end
 			# #tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, localDampNodes);
 		
 			
-			
+			 grid();
 			 xlabel("x");
 			 ylabel("p/pinf");
 			 title("p/Pinf");
@@ -212,44 +214,55 @@ end
 			
 			
 			
-			
-			subplot(3,1,3);
-			cla();
-			
-	
-			cf_Nodes = zeros(Float64,length(wallNodes));
 		
-			
 			
 			 for i = 1:length(wallNodes)
 				node = wallNodes[i];
 				cell = wallCells[i];
 				
 				# #cf_Nodes[i] = 2.0/(0.5806*746.531*746.531)*testFieldsViscous.artViscosityNodes[z]*testFieldsViscous.cdUdyNodes[z];
-				cf_Nodes[i] = testFieldsViscous.artViscosityNodes[node]*testFields.UxCells[cell]/wallDistances[i];
+				tauWall =  testFieldsViscous.artViscosityNodes[node]*testFields.UxCells[cell]/wallDistances[i];
+				cfNodes[i] = 2.0/(0.5806*746.531*746.531)*tauWall;
+				
+				yPlusNodes[i] = wallDistances[i]/testFieldsViscous.artViscosityNodes[node]*testFields.densityNodes[node]*sqrt(abs(tauWall)/testFields.densityNodes[node]);
 				
 			 end
 			
+			subplot(3,2,3);
+			cla();
 			
 			#plot(exp_cf[:,1],exp_cf[:,2], "or",label="exp",markersize = 2.0);
-			plot(testMesh.xNodes[wallNodes],cf_Nodes, "sk",markersize = 2.0);
+			plot(testMesh.xNodes[wallNodes],cfNodes, "sk",markersize = 2.0);
+			grid();
 			xlabel("x");
 			ylabel("Cf");
 			#title("p/Pinf");
 
+			subplot(3,2,4);
+			cla();
 			
-			# if (size(timeVector,1) >1)
-				# plot(timeVector, residualsVector1./residualsVectorMax[1],"-r",label="continuity"); 
-				# plot(timeVector, residualsVector2./residualsVectorMax[2],"-g",label="momentum ux"); 
-				# plot(timeVector, residualsVector3./residualsVectorMax[3],"-b",label="momentum uy"); 
-				# plot(timeVector, residualsVector4./residualsVectorMax[4],"-c",label="energy"); 
-			# end
+			#plot(exp_cf[:,1],exp_cf[:,2], "or",label="exp",markersize = 2.0);
+			plot(testMesh.xNodes[wallNodes],yPlusNodes, "sk",markersize = 2.0);
+			xlabel("x");
+			ylabel("yPlus");
+			grid();
+
+			subplot(3,2,5);
+			cla();
+
 			
-			# yscale("log");	
-			# xlabel("flow time [s]");
-			# ylabel("Res");
-			# title("Residuals");
-			# legend();
+			if (size(timeVector,1) >1)
+				plot(timeVector, residualsVector1./residualsVectorMax[1],"-r",label="continuity"); 
+				plot(timeVector, residualsVector2./residualsVectorMax[2],"-g",label="momentum ux"); 
+				plot(timeVector, residualsVector3./residualsVectorMax[3],"-b",label="momentum uy"); 
+				plot(timeVector, residualsVector4./residualsVectorMax[4],"-c",label="energy"); 
+			end
+			
+			yscale("log");	
+			xlabel("flow time [s]");
+			ylabel("Res");
+			title("Residuals");
+			legend();
 			
 			pause(1.0e-5);
 			
