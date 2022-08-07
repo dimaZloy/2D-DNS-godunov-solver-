@@ -1,25 +1,145 @@
 
 
 
-@everywhere function calcOneStage(
+function calcOneStageCUDA(
 		betta::Float64, dtX::Float64, flowTime::Float64, 
-		testMeshDistrX::mesh2d_Int32, testfields2dX::fields2d, thermoX::THERMOPHYSICS, cellsThreadsX::Array{Int32,2},
-		UconsCellsOldX::Array{Float64,2}, iFLUXX::Array{Float64,2}, UconsDiffTerm::Array{Float64,2}, UconsCellsNewX::Array{Float64,2})
+		testMeshX::mesh2d_Int32, testfields2dX::fields2d, thermoX::THERMOPHYSICS, cellsThreadsX::Array{Int32,2},
+		UconsCellsOldX::Array{Float64,2}, UconsDiffTermX::Array{Float64,2}, UconsCellsNewX::Array{Float64,2},
+		uLeft::Array{Float64,2},  
+		uRight1::Array{Float64,2}, uRight2::Array{Float64,2}, uRight3::Array{Float64,2}, uRight4::Array{Float64,2},
+		iFluxV1::Array{Float64,1}, iFluxV2::Array{Float64,1}, iFluxV3::Array{Float64,1}, iFluxV4::Array{Float64,1},
+		 cuNxV1::CuVector{Float64, Mem.UnifiedBuffer}, 
+		cuNxV2::CuVector{Float64, Mem.UnifiedBuffer}, 
+		cuNxV3::CuVector{Float64, Mem.UnifiedBuffer}, 
+		cuNxV4::CuVector{Float64, Mem.UnifiedBuffer}, 
+		cuNyV1::CuVector{Float64, Mem.UnifiedBuffer}, 
+		cuNyV2::CuVector{Float64, Mem.UnifiedBuffer}, 
+		cuNyV3::CuVector{Float64, Mem.UnifiedBuffer}, 
+		cuNyV4::CuVector{Float64, Mem.UnifiedBuffer}, 
+		cuSideV1::CuVector{Float64, Mem.UnifiedBuffer},
+		cuSideV2::CuVector{Float64, Mem.UnifiedBuffer},
+		cuSideV3::CuVector{Float64, Mem.UnifiedBuffer},
+		cuSideV4::CuVector{Float64, Mem.UnifiedBuffer},
+		cuFluxV1::CuVector{Float64, Mem.UnifiedBuffer},
+		cuFluxV2::CuVector{Float64, Mem.UnifiedBuffer},
+		cuFluxV3::CuVector{Float64, Mem.UnifiedBuffer},
+		cuFluxV4::CuVector{Float64, Mem.UnifiedBuffer},
+		cuGammaV::CuVector{Float64, Mem.UnifiedBuffer},
+		cuNeibs::CuVector{Int32, Mem.UnifiedBuffer})
 
-	#@sync @distributed for p in workers()
-	Threads.@threads for p in 1:Threads.nthreads()
+		#display("Compute cuda stencils ... ")
+		 Threads.@threads for p in 1:Threads.nthreads()
 	
-		beginCell::Int32 = cellsThreadsX[p,1];
-		endCell::Int32 = cellsThreadsX[p,2];
-		#println("worker: ",p,"\tbegin cell: ",beginCell,"\tend cell: ", endCell);
-										 
-		#SecondOrderUpwindM2(beginCell ,endCell, betta, dtX, testMeshDistrX, testfields2dX, thermoX, UconsCellsOldX, iFLUXX, UconsCellsNewX);
-		SecondOrderUpwindM2(beginCell ,endCell, betta, dtX, flowTime,  testMeshDistrX, testfields2dX, thermoX, UconsCellsOldX, iFLUXX, UconsDiffTerm,  UconsCellsNewX);
-					
-	end
+		# 	#println("worker: ",p,"\tbegin cell: ",beginCell,"\tend cell: ", endCell);		
+		 	computeStencilsCUDA(cellsThreadsX[p,1], cellsThreadsX[p,2],  betta, dtX, flowTime,  testMeshX, testfields2dX, thermoX, 
+		 			uLeft, uRight1, uRight2, uRight3, uRight4);
+
+						
+		 end
+
+		 curLeftV  = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMeshX.nCells)
+		 cuULeftV  = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMeshX.nCells)
+		 cuVLeftV  = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMeshX.nCells)
+		 cuPLeftV  = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMeshX.nCells)
+
+		 curRightV  = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMeshX.nCells)
+		 cuURightV  = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMeshX.nCells)
+		 cuVRightV  = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMeshX.nCells)
+		 cuPRightV  = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMeshX.nCells)
+
+		#display("done")
+
+
+		#display("Compute cuda fluxes ... ")
+		num_threads = cld(testMeshX.nCells,256);
+
+
+
+		CUDA.@sync begin
+
+			fill!(cuFluxV1,0.0);
+			fill!(cuFluxV2,0.0);
+			fill!(cuFluxV3,0.0);
+			fill!(cuFluxV4,0.0);
+	
+
+			copyto!(curLeftV,uLeft[1,:]);
+			copyto!(cuULeftV,uLeft[2,:]);
+			copyto!(cuVLeftV,uLeft[3,:]);
+			copyto!(cuPLeftV,uLeft[4,:]);
+
+			copyto!(curRightV,uRight1[1,:]);
+			copyto!(cuURightV,uRight1[2,:]);
+			copyto!(cuVRightV,uRight1[3,:]);
+			copyto!(cuPRightV,uRight1[4,:]);
+
+
+		 @cuda blocks = 256 threads = num_threads kernel_AUSM2d(
+				curRightV, cuURightV, cuVRightV, cuPRightV,
+				curLeftV, cuULeftV, cuVLeftV, cuPLeftV, 
+		 		cuNxV1, cuNyV1, cuSideV1, cuFluxV1, cuFluxV2, cuFluxV3,cuFluxV4, cuGammaV);
+	 
+			 copyto!(curRightV,uRight2[1,:]);
+			 copyto!(cuURightV,uRight2[2,:]);
+			 copyto!(cuVRightV,uRight2[3,:]);
+			 copyto!(cuPRightV,uRight2[4,:]);
+	 		
+				
+		 @cuda blocks = 256 threads = num_threads kernel_AUSM2d(
+				curRightV, cuURightV, cuVRightV, cuPRightV, 
+				curLeftV, cuULeftV, cuVLeftV, cuPLeftV,  
+		 		cuNxV2, cuNyV2, cuSideV2, cuFluxV1, cuFluxV2, cuFluxV3,cuFluxV4,cuGammaV );
+	 
+	
+			 copyto!(curRightV,uRight3[1,:]);
+			 copyto!(cuURightV,uRight3[2,:]);
+			 copyto!(cuVRightV,uRight3[3,:]);
+			 copyto!(cuPRightV,uRight3[4,:]);
+	 
+
+		 @cuda blocks = 256 threads = num_threads kernel_AUSM2d(
+				curRightV, cuURightV, cuVRightV, cuPRightV, 
+				curLeftV, cuULeftV, cuVLeftV, cuPLeftV, 
+		 		cuNxV3, cuNyV3, cuSideV3,cuFluxV1, cuFluxV2, cuFluxV3,cuFluxV4,cuGammaV );
+				
+			#  copyto!(curRightV,uRight4[1,:]);
+		 	#  copyto!(cuURightV,uRight4[2,:]);
+		 	#  copyto!(cuVRightV,uRight4[3,:]);
+		 	#  copyto!(cuPRightV,uRight4[4,:]);
+	
+		#   @cuda blocks = 256 threads = num_threads kernel_AUSM2dd(
+		#	curRightV, cuURightV, cuVRightV, cuPRightV,
+		#	curLeftV, cuULeftV, cuVLeftV, cuPLeftV, 
+		#  	 cuNxV3, cuNyV3, cuSideV3,cuFluxV1, cuFluxV2, cuFluxV3,cuFluxV4,cuGammaV, cuNeibs );
+
+	
+	 		copyto!(iFluxV1,cuFluxV1);
+	 		copyto!(iFluxV2,cuFluxV2);
+			copyto!(iFluxV3,cuFluxV3);
+			copyto!(iFluxV4,cuFluxV4);
+
+		end
+		  
 			
+		#display("done ... ")
+		#display("update solution ... ")
+
+		 Threads.@threads for p in 1:Threads.nthreads()
 	
-	@everywhere finalize(SecondOrderUpwindM2);				
+		# 	#println("worker: ",p,"\tbegin cell: ",beginCell,"\tend cell: ", endCell);	
+			
+		 	for i = cellsThreadsX[p,1]:cellsThreadsX[p,2]
+			
+		 		Rarea::Float64 = 1.0/testMeshX.cell_areas[i];
+  		 		 UconsCellsNewX[i,1] = ( UconsCellsOldX[i,1] - iFluxV1[i]*betta*dtX*Rarea + betta*dtX*UconsDiffTermX[i,1] );
+		 		 UconsCellsNewX[i,2] = ( UconsCellsOldX[i,2] - iFluxV2[i]*betta*dtX*Rarea + betta*dtX*UconsDiffTermX[i,2] );
+		 		 UconsCellsNewX[i,3] = ( UconsCellsOldX[i,3] - iFluxV3[i]*betta*dtX*Rarea + betta*dtX*UconsDiffTermX[i,3] );
+		 		 UconsCellsNewX[i,4] = ( UconsCellsOldX[i,4] - iFluxV4[i]*betta*dtX*Rarea + betta*dtX*UconsDiffTermX[i,4] );
+				
+		 	end
+						
+		 end
+		#display("done")
 
 end
 

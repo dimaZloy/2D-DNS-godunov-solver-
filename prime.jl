@@ -7,23 +7,23 @@ using WriteVTK;
 using CPUTime;
 using DelimitedFiles;
 using Printf
-using Dierckx
 using BSON: @load
 using BSON: @save
 using SharedArrays;
 
 using HDF5;
 using ProfileView;
+using CUDA;
 
-include("exp.jl"); 
 
 include("primeObjects.jl");
-include("viscosityModels.jl"); # calc air viscosity using Sutherland law
 include("thermo.jl"); #setup thermodynamics
 include("utilsIO.jl");
-#include("RoeFlux2d.jl")
+
 
 include("AUSMflux2dFast.jl"); #AUSM+ inviscid flux calculation 
+include("AUSMflux2dCUDA.jl");
+#include("RoeFlux2dCUDA.jl");
 
 include("utilsFVM2dp.jl"); #FVM utililities
 ## utilsFVM2dp::cells2nodesSolutionReconstructionWithStencilsImplicitSA
@@ -37,7 +37,7 @@ include("calcDiv.jl");
 include("calcArtViscosity.jl");
 include("calcDiffterm.jl");
 
-#include("bcInviscidWall.jl"); ## depricated
+include("bcInviscidWall.jl"); 
 include("boundaryConditions2d.jl"); 
 
 include("initfields2d.jl");
@@ -74,76 +74,11 @@ include("propagate2d.jl");
 function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 
 
+	useCuda = true;
+
 	flag2loadPreviousResults = false;
 
 	testMesh = readMesh2dHDF5(pname);
-	
-	wall_indx = findall(x->x==-3,testMesh.bc_indexes)
-	
-	#display(wall_indx);
-
-	nWalls = length(wall_indx)
-	#display(nWalls);
-	#pause(10000)
-	wall_Nodes = zeros(Int32,nWalls)
-	cf_Nodes = zeros(Float64,nWalls)
-	yPlus_Nodes = zeros(Float64,nWalls);
-
-	wall_Distances = zeros(Float64,nWalls);
-	wall_Cells = zeros(Int32,nWalls);
-	
-	for i = 1:nWalls
-		c = wall_indx[i];
-		idb = testMesh.bc_data[c,1]; ## cell id 
-		idv1 = testMesh.bc_data[c,2]; ##  cell type		
-		idv2 = testMesh.bc_data[c,3]; ## node id
-					
-		p2 = testMesh.mesh_connectivity[idb,3+idv2];
-		wall_Nodes[i] = p2;
-		wall_Distances[i] = testMesh.cell_wall_distances[idb,idv2];
-		wall_Cells[i] = idb;
-		
-	end
-	
-	# display(wall_Nodes)
-	# pause(10000)
-	
-	
-	
-	#display(testMesh.bc_data)
-	
-	# figure(222)
-	# clf();
-	# for i = 1:size(testMesh.bc_indexes,1)
-
-		# idb = testMesh.bc_data[i,1]; ## cell id 
-		# idv1 = testMesh.bc_data[i,2]; ##  cell type		
-		# idv2 = testMesh.bc_data[i,3]; ## node id
-					
-		# p2 = testMesh.mesh_connectivity[idb,3+idv2];
-	
-		# if (testMesh.bc_indexes[i] == -4); 
-			# plot(testMesh.xNodes[p2],testMesh.yNodes[p2],"ok");			
-
-		# elseif (testMesh.bc_indexes[i] == -3); 
-					
-			# plot(testMesh.xNodes[p2],testMesh.yNodes[p2],"og");
-			
-		# elseif (testMesh.bc_indexes[i] == -2); 
-			# plot(testMesh.xNodes[p2],testMesh.yNodes[p2],"or");			
-			
-		# elseif (testMesh.bc_indexes[i] == -1); 
-			# plot(testMesh.xNodes[p2],testMesh.yNodes[p2],"ob");			
-			
-		# end
-	# end
-	
-	#pause(10000)
-	
-	
-	# display(testMesh.cells2nodes)
-	# display( findall(x->x==0, testMesh.cells2nodes) )
-	
 		
 	cellsThreads = distibuteCellsInThreadsSA(Threads.nthreads(), testMesh.nCells); ## partition mesh 
 	nodesThreads = distibuteNodesInThreadsSA(Threads.nthreads(), testMesh.nNodes); ## partition mesh 
@@ -184,10 +119,6 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	UconsCellsOldX = zeros(Float64,testMesh.nCells,4);
 	UconsNodesOldX = zeros(Float64,testMesh.nNodes,4);
 	UconsCellsNewX = zeros(Float64,testMesh.nCells,4);
-	
-	UconsCellsNewTmpX1 = zeros(Float64,testMesh.nCells,4);
-	UconsCellsNewTmpX2 = zeros(Float64,testMesh.nCells,4);
-	UconsCellsNewTmpX3 = zeros(Float64,testMesh.nCells,4);
 		
 	UConsDiffCellsX = zeros(Float64,testMesh.nCells,4);
 	UConsDiffNodesX = zeros(Float64,testMesh.nNodes,4);
@@ -195,59 +126,95 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	DeltaX = zeros(Float64,testMesh.nCells,4);
 	iFLUXX  = zeros(Float64,testMesh.nCells,4);
 	dummy  = zeros(Float64,testMesh.nNodes,4);
-	
-	#localTau = zeros(Float64,testMesh.nCells,1);
-	
 
-	localDampNodes  = zeros(Float64,testMesh.nNodes);
-	localDampCells  = zeros(Float64,testMesh.nCells);
+	uRight1 = zeros(Float64,4,testMesh.nCells);
+	uRight2 = zeros(Float64,4,testMesh.nCells);
+	uRight3 = zeros(Float64,4,testMesh.nCells);
+	uRight4 = zeros(Float64,4,testMesh.nCells);
 
-	for i = 1:testMesh.nCells
-		# rad::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1] + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2]);
-		# localDampCells[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
-		localDampCells[i] = 1.0;
-		
-	end
+	uLeft = zeros(Float64,4,testMesh.nCells);
+
+	iFluxV1 = zeros(Float64,testMesh.nCells);
+	iFluxV2 = zeros(Float64,testMesh.nCells);
+	iFluxV3 = zeros(Float64,testMesh.nCells);
+	iFluxV4 = zeros(Float64,testMesh.nCells);
+	
+	###################################################################################
+	## Vectors for CUDA 
+
+	gammaV = zeros(Float64,testMesh.nCells);
+	fill!(gammaV, thermo.Gamma);
+
+	cuGammaV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	copyto!(cuGammaV, gammaV)
+
+	nx = copy(testMesh.cell_edges_Nx);
+	ny = copy(testMesh.cell_edges_Ny);
+	Sides = copy(testMesh.cell_edges_length);
+
+#= 
+	curLeftV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuULeftV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuVLeftV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuPLeftV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+
+	curRightV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuURightV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuVRightV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuPRightV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells) =#
+
+
+	cuNxV1 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuNxV2 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuNxV3 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuNxV4 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+
+    cuNyV1 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuNyV2 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuNyV3 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuNyV4 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+
+    cuSideV1 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuSideV2 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuSideV3 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	cuSideV4 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+
+    cuFluxV1 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+    cuFluxV2 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+    cuFluxV3 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+    cuFluxV4 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+
+	copyto!(cuNxV1, nx[:,1])
+	copyto!(cuNxV2, nx[:,2])
+	copyto!(cuNxV3, nx[:,3])
+	copyto!(cuNxV4, nx[:,4])
+
+    copyto!(cuNyV1, ny[:,1])
+	copyto!(cuNyV2, ny[:,2])
+	copyto!(cuNyV3, ny[:,3])
+	copyto!(cuNyV4, ny[:,4])
+
+    copyto!(cuSideV1, Sides[:,1])
+	copyto!(cuSideV2, Sides[:,2])
+	copyto!(cuSideV3, Sides[:,3])
+	copyto!(cuSideV4, Sides[:,4])
+
+	numNeibs = copy(testMesh.mesh_connectivity[:,3]);
+	cuNeibsV = CuVector{Int32, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	copyto!(cuNeibsV,numNeibs )
 
 	
-	for i = 1:testMesh.nNodes
-		
-		# rad::Float64 = sqrt(testMesh.xNodes[i]*testMesh.xNodes[i] + testMesh.yNodes[i]*testMesh.yNodes[i]);
-		# localDampNodes[i] = 1.0 - exp(  -(rad/25.0)^3.0); 
-		localDampNodes[i] = 1.0;
-	end
+	# UpLeft = zeros(Float64,testMesh.nCells,4,4);
+	# UpRight = zeros(Float64,testMesh.nCells,4,4);
 	
-	
-	
-	
+	###################################################################################
 	
 	phs2dcns2dcellsSA(UconsCellsOldX,testfields2d, thermo.Gamma);	
 	phs2dcns2dcellsSA(UconsCellsNewX,testfields2d, thermo.Gamma);	
 	
 	
-	#cells2nodesSolutionReconstructionWithStencilsUCons(nodesThreads, testMesh, UconsCellsOldX,  UconsNodesOldX );	
+	cells2nodesSolutionReconstructionWithStencilsUCons(nodesThreads, testMesh, UconsCellsOldX,  UconsNodesOldX );	
 
-	#@sync @distributed for p in workers()	
-	Threads.@threads for p in 1:Threads.nthreads()
-	
-		 beginNode::Int32 = nodesThreads[p,1];
-		 endNode::Int32 = nodesThreads[p,2];
-																	
-		 cells2nodesSolutionReconstructionWithStencils(beginNode, endNode, 
-			testMesh, testfields2d, viscfields2d, UconsCellsOldX,  UconsNodesOldX);
-		
-	 end
-
-
-	exp_pressure[:,1] = exp_pressure[:,1]./400*2.3*8e-2;	
-	exp_cf[:,1] = exp_cf[:,1]./400*2.3*8e-2;	
-
-	figure(101)
-	# clf()
-	# plot(exp_pressure[:,1],exp_pressure[:,2], "or",label="exp");
-	# plot(testMesh.xNodes[wall_Nodes],testfields2d.pressureNodes[wall_Nodes]./50000.0, "sk");
-	# pause(10000)
-	
 	
 
 	timeVector = [];
@@ -256,7 +223,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	residualsVector3 = []; 
 	residualsVector4 = []; 
 	residualsVectorMax = ones(Float64,4);
-	convergenceCriteria= [1e-10;1e-10;1e-10;1e-10;];
+	convergenceCriteria= [1e-5;1e-5;1e-5;1e-5;];
 	
 	
 	# debugSaveInit = false;
@@ -289,33 +256,14 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	
 	
 	
-	#maxEdge,id = findmax(testMesh.HX);
-	
-	# dynControls.tau = 0.0;
-	
-	for i = 1:testMesh.nCells
-		
-		# localTau[i] = solControls.CFL*testMesh.HX[i]*testMesh.HX[i]/( *testMesh.HX[i]*testfields2d.VMAXCells[i] + 2.0*thermoX.Gamma/thermoX.Pr * viscfields2d.artViscosityCells[i]/testfields2d.densityCells[i]);
-		
-		testfields2d.localCFLCells[i] = min(solControls.CFL*0.5*testMesh.HX[i]/testfields2d.VMAXCells[i], 
-								testMesh.HX[i]*testMesh.HX[i]*0.25*testfields2d.densityCells[i]/viscfields2d.artViscosityCells[i]);
-	
-	end	
-	
-	
-	#minTimeStep,id = findmax(testfields2d.localCFLCells);
-	#dynControls.tau = minTimeStep;
+	maxEdge,id = findmax(testMesh.HX);
 
 	dt::Float64 =  solControls.dt;  
 	# @everywhere dtX = $dt; 
 	# @everywhere maxEdgeX = $maxEdge; 
 
-	@everywhere localDampCellsX = $localDampCells;
-
 	debug = true;	
 	useArtViscoistyDapming = true;
-
-
 
 	
 	println("Start calculations ...");
@@ -333,55 +281,61 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			
 			
 			# PROPAGATE STAGE: 
-			#(dynControls.velmax,id) = findmax(testfields2d.VMAXCells);
+			(dynControls.velmax,id) = findmax(testfields2d.VMAXCells);
 			# #dynControls.tau = solControls.CFL * testMesh.maxEdgeLength/(max(dynControls.velmax,1.0e-6)); !!!!
-			#dynControls.tau = solControls.CFL * maxEdge/(max(dynControls.velmax,1.0e-6));
-			
-			(dynControls.tau,id) = findmin(testfields2d.localCFLCells);
+			dynControls.tau = solControls.CFL * maxEdge/(max(dynControls.velmax,1.0e-6));
 		
 			
 			if (useArtViscoistyDapming)
 			
-				calcArtificialViscositySA( cellsThreads, testMesh, thermo, testfields2d, viscfields2d,  UconsNodesOldX);					
-				calcDiffTerm(cellsThreads, nodesThreads,  testMesh, testfields2d, viscfields2d, thermo, UconsNodesOldX, UConsDiffCellsX, UConsDiffNodesX, localDampCellsX);
+				calcArtificialViscositySA( cellsThreads, testMesh, thermo, testfields2d, viscfields2d);		
+				calcDiffTerm(cellsThreads, testMesh, testfields2d, viscfields2d, thermo, UconsNodesOldX, UConsDiffCellsX, UConsDiffNodesX);
 			
 			end
 	
-				
-			## Explicit Euler first-order	
-			calcOneStage(1.0, solControls.dt, dynControls.flowTime, testMesh , testfields2d, thermo, cellsThreads,  UconsCellsOldX, iFLUXX, UConsDiffCellsX,  UconsCellsNewX);
-					
-			## RK3-TVD
-			# calcOneStage(1.0, solControls.dt, dynControls.flowTime, testMesh , testfields2d, thermo, cellsThreads,  UconsCellsOldX, iFLUXX, UConsDiffCellsX,  UconsCellsNewTmpX1);
-			# calcOneStage(1.0, solControls.dt, dynControls.flowTime, testMesh , testfields2d, thermo, cellsThreads,  UconsCellsNewTmpX1, iFLUXX, UConsDiffCellsX,  UconsCellsNewTmpX2);
+
+			if (CUDA.has_cuda() && useCuda)
 			
-			# Threads.@threads for p in 1:Threads.nthreads()			
-	
-				# beginCell::Int32 = cellsThreads[p,1];
-				# endCell::Int32 = cellsThreads[p,2];
-				# #println("worker: ",p,"\tbegin cell: ",beginCell,"\tend cell: ", endCell);
-				
-				# for i=beginCell:endCell
-					# UconsCellsNewTmpX3[i,1] = 0.75*UconsCellsOldX[i,1]+0.25*UconsCellsNewTmpX2[i,1];
-					# UconsCellsNewTmpX3[i,2] = 0.75*UconsCellsOldX[i,2]+0.25*UconsCellsNewTmpX2[i,2];
-					# UconsCellsNewTmpX3[i,3] = 0.75*UconsCellsOldX[i,3]+0.25*UconsCellsNewTmpX2[i,3];
-					# UconsCellsNewTmpX3[i,4] = 0.75*UconsCellsOldX[i,4]+0.25*UconsCellsNewTmpX2[i,4];
-				# end
-		
-			# end
+
+			 	 calcOneStageCUDA(1.0, solControls.dt, dynControls.flowTime, 
+				 		testMesh , testfields2d, thermo, cellsThreads,  
+				 		UconsCellsOldX, UConsDiffCellsX,  UconsCellsNewX, 
+			 	 		uLeft, 
+						uRight1, uRight2, uRight3, uRight4,
+						iFluxV1, iFluxV2, iFluxV3, iFluxV4, 
+					  	cuNxV1, cuNxV2, cuNxV3, cuNxV4, 
+						cuNyV1, cuNyV2, cuNyV3, cuNyV4, 
+					  	cuSideV1, cuSideV2, cuSideV3, cuSideV4,
+					  	cuFluxV1, cuFluxV2, cuFluxV3, cuFluxV4,  cuGammaV,  cuNeibsV);
+
+
+			else
+
+			 	## Explicit Euler first-order	
+			 	## calcOneStage(1.0, solControls.dt, dynControls.flowTime, testMesh , testfields2d, thermo, cellsThreads,  UconsCellsOldX, iFLUXX, UConsDiffCellsX,  UconsCellsNewX);
+
+				Threads.@threads for p in 1:Threads.nthreads()	
+					SecondOrderUpwindM2(cellsThreads[p,1], cellsThreads[p,2], 1.0, solControls.dt, dynControls.flowTime,  
+						testMesh, testfields2d, thermo, UconsCellsOldX, iFLUXX, UConsDiffCellsX,  UconsCellsNewX);
+				end
+
+			end
+
+
+			
+			#doExplicitRK3TVD(1.0, dtX, testMeshDistrX , testfields2dX, thermoX, cellsThreadsX,  UconsCellsOldX, iFLUXX,  UConsDiffCellsX, 
+			#  UconsCellsNew1X,UconsCellsNew2X,UconsCellsNew3X,UconsCellsNewX);
+			
 						
-			# calcOneStage(1.0, solControls.dt, dynControls.flowTime, testMesh , testfields2d, thermo, cellsThreads,  UconsCellsNewTmpX3, iFLUXX, UConsDiffCellsX,  UconsCellsNewX);
-			# end RK3-TVD
 			
 			#@sync @distributed for p in workers()
 			Threads.@threads for p in 1:Threads.nthreads()			
 	
-				beginCell::Int32 = cellsThreads[p,1];
-				endCell::Int32 = cellsThreads[p,2];
-				#println("worker: ",p,"\tbegin cell: ",beginCell,"\tend cell: ", endCell);
-														
+				#beginCell::Int32 = cellsThreads[p,1];
+				#endCell::Int32 = cellsThreads[p,2];
+				#println("worker: ",p,"\tbegin cell: ",beginCell,"\tend cell: ", endCell);										
 				#updateVariablesSA(beginCell, endCell, thermo.Gamma,  UconsCellsNewX, UconsCellsOldX, DeltaX, testfields2d);
-				updateVariablesSA(beginCell, endCell, solControls.CFL,  thermo,  UconsCellsNewX, UconsCellsOldX, DeltaX, testMesh, testfields2d, viscfields2d);
+				updateVariablesSA(cellsThreads[p,1], cellsThreads[p,2], thermo.Gamma,  UconsCellsNewX, UconsCellsOldX, DeltaX, testfields2d);
 		
 			end
 			
@@ -391,17 +345,19 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			 #@sync @distributed for p in workers()	
 			 Threads.@threads for p in 1:Threads.nthreads()
 	
-				 beginNode::Int32 = nodesThreads[p,1];
-				 endNode::Int32 = nodesThreads[p,2];
-				
-														
-				 cells2nodesSolutionReconstructionWithStencils(beginNode, endNode, 
-					testMesh, testfields2d, viscfields2d, UconsCellsOldX,  UconsNodesOldX);
+				#  beginNode::Int32 = nodesThreads[p,1];
+				#  endNode::Int32 = nodesThreads[p,2];														
+				#  cells2nodesSolutionReconstructionWithStencilsDistributed(beginNode, endNode, 
+				# 	testMesh, testfields2d, viscfields2d, UconsCellsOldX,  UconsNodesOldX);
+				cells2nodesSolutionReconstructionWithStencilsDistributed(nodesThreads[p,1],nodesThreads[p,2],
+				 	testMesh, testfields2d, viscfields2d, UconsCellsOldX,  UconsNodesOldX);
 		
 			 end
 			
-		
 			
+			
+			
+			#cells2nodesSolutionReconstructionWithStencilsSerial(testMeshX,testfields2dX, viscfields2dX, UconsCellsOldX,  UconsNodesOldX);
 								
 	
 			(dynControls.rhoMax,id) = findmax(testfields2d.densityCells);
@@ -412,34 +368,17 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			dynControls.curIter += 1; 
 			dynControls.verIter += 1;
 				
+			
+			
+			
 			updateResidualSA(DeltaX, 
 				residualsVector1,residualsVector2,residualsVector3,residualsVector4, residualsVectorMax,  
 				convergenceCriteria, dynControls);
 			
 			
 			updateOutputSA(timeVector,residualsVector1,residualsVector2,residualsVector3,residualsVector4, residualsVectorMax, 
-				testMesh, testfields2d, viscfields2d,  solControls, output, dynControls, solInst, 
-					wall_Nodes, wall_Distances, wall_Cells, cf_Nodes, yPlus_Nodes);
+				testMesh, testfields2d, viscfields2d,  solControls, output, dynControls, solInst);
 	
-	
-			for i = 1:size(testMesh.bc_indexes,1)
-				if (testMesh.bc_indexes[i] == -3); 
-					
-					idb = testMesh.bc_data[i,1]; ## cell id 
-					idv1 = testMesh.bc_data[i,2]; ##  cell type		
-					idv2 = testMesh.bc_data[i,3]; ## node id
-	
-					
-					p2 = testMesh.mesh_connectivity[idb,3+idv2];
-				
-					UconsNodesOldX[p2,1] = 0.0;
-					UconsNodesOldX[p2,2] = 0.0;
-					UconsNodesOldX[p2,3] = 0.0;
-					UconsNodesOldX[p2,4] = 0.0;
-				
-					
-				end
-			end
 			
 			# EVALUATE STAGE:
 			
@@ -497,10 +436,10 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 		solInst.dt = solControls.dt;
 		solInst.flowTime = dynControls.flowTime;
 		for i = 1 : solInst.nCells
-			solInst.densityCells[i] 	= testfields2d.densityCells[i];
-			solInst.UxCells[i] 			= testfields2d.UxCells[i];
-			solInst.UyCells[i] 			= testfields2d.UyCells[i];
-			solInst.pressureCells[i] 	= testfields2d.pressureCells[i];
+		 	solInst.densityCells[i] 	= testfields2d.densityCells[i];
+		 	solInst.UxCells[i] 			= testfields2d.UxCells[i];
+		 	solInst.UyCells[i] 			= testfields2d.UyCells[i];
+		 	solInst.pressureCells[i] 	= testfields2d.pressureCells[i];
 		end
 		
 
@@ -517,36 +456,13 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			uyNodes[i] 			= testfields2d.UyNodes[i];
 			pNodes[i] 			= testfields2d.pressureNodes[i];
 		end
-		
-		for i = 1:size(testMesh.bc_indexes,1)
-			if (testMesh.bc_indexes[i] == -3); 
-					
-				idb = testMesh.bc_data[i,1]; ## cell id 
-				idv1 = testMesh.bc_data[i,2]; ##  cell type		
-				idv2 = testMesh.bc_data[i,3]; ## node id
-	
-				p2 = testMesh.mesh_connectivity[idb,3+idv2];
 				
-				uxNodes[p2] = 0.0;
-				uyNodes[p2] = 0.0;					
-			end
-		end
-		
-		
 		println("Saving  solution to  ", outputfile);
 			saveResults4VTK(outputfile, testMesh, rhoNodes, uxNodes, uyNodes, pNodes);
 			@save outputfile solInst
 		println("done ...  ");	
 		
-		println("Saving wall plots ... ")
-		open("wallData.txt","w") do io
-		
-		  for i = 1:nWalls	
-			print(io,testMesh.xNodes[wall_Nodes[i]],"\t", testfields2d.pressureNodes[ wall_Nodes[i] ], "\t", cf_Nodes[i],"\t",yPlus_Nodes[i],"\n")
-		  end
-		  
-		end
-		println("done ...  ");	 
+		 
 		 
 		
 	#end ## if debug
@@ -560,12 +476,9 @@ end
 ##@profview godunov2dthreads("2dmixinglayerUp_delta2.bson", numThreads, "2dMixingLayer_delta2", false); 
 
 
-#godunov2dthreads("cyl2d_supersonic1",  "cyl2d_supersonic1", false); 
-#godunov2dthreads("cyl2d_supersonic1_BL",  "cyl2d_supersonic1_BL", false); 
-#godunov2dthreads("cyl2d_supersonic1_BL_test",  "cyl2d_supersonic1_BL_test", false); 
-#godunov2dthreads("oblickShock2dl00F1n",  "oblickShock2dl00F1n", false); 
-
-godunov2dthreads("swlbl00",  "swlbl00", false); 
+godunov2dthreads("cyl2d_supersonic1",  "cyl2d_supersonic1", false); 
+#godunov2dthreads("cyl2d_supersonic2",  "cyl2d_supersonic2", false); 
+#godunov2dthreads("cyl2d_supersonic3",  "cyl2d_supersonic3", false); 
 
 
 

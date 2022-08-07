@@ -2,10 +2,7 @@
 println("set numerics ...");
 
 
-#thermo = THERMOPHYSICS(287.058,1.4,1000.0,0.0,0.0);
-
-thermo = THERMOPHYSICS(287.058,1.4,1000.0,0.0,0.0, 
-		CvSplineApprox1D, CpSplineApprox1D, GammaSplineApprox1D, kSplineApprox1D );
+thermo = THERMOPHYSICS(287.058,1.4,1000.0,0.0,0.0);
 
 
 solver = SOLVER2D(
@@ -18,12 +15,12 @@ solver = SOLVER2D(
 
 solControls = CONTROLS(
 	0.1, #CFL
-	1e-7, ##5.0e-9, # time step, 
+	5e-7, ##5.0e-9, # time step, 
 	0, # fixed timeStepMethod (1 - adaptive)
 	0.0,  # actual physical time to start simulation
-	0.02,  # actual physical time to stop simulation 
+	0.1,  # actual physical time to stop simulation 
 	1, # flag to plot residuals
-	1, # flag to constrain density
+	0, # flag to constrain density
 	0.01, # minDensityConstrained::Float64;
 	10.0 # maxDensityConstrained::Float64;	
 	);
@@ -56,7 +53,7 @@ dynControls.globalPath = pwd();
 
 
 output = outputCONTROLS(
-	1000, #verbosity::Int8;  
+	100, #verbosity::Int8;  
 	"Time[s]\t Tau[s]\t Resid1\t Resid2\t Resid3\t Resid4\t CPUtime [s]", 
 	0, #saveResiduals::Int8;
 	0, #saveResults::Int8; 

@@ -108,12 +108,17 @@ end
 	# htR::Float64 =  PR/rhoR/(gamma-1.0) + 0.5*(UMAG_R2) +  PR/rhoR;
 
 
-	htL::Float64 =  PL/rhoL/(gamma-1.0) + 0.5*(_UL*_UL + _VL*_VL) +  PL/rhoL; 
-	htR::Float64 =  PR/rhoR/(gamma-1.0) + 0.5*(_UR*_UR + _VR*_VR) +  PR/rhoR;
+	#htL::Float64 =  PL/rhoL/(gamma-1.0) + 0.5*(_UL*_UL + _VL*_VL) +  PL/rhoL; 
+	#htR::Float64 =  PR/rhoR/(gamma-1.0) + 0.5*(_UR*_UR + _VR*_VR) +  PR/rhoR;
 	
+	htL::Float64 =  muladd(0.5,(_UL*_UL + _VL*_VL),  PL/rhoL + PL/rhoL/(gamma-1.0) ); 
+	htR::Float64 =  muladd(0.5,(_UR*_UR + _VR*_VR),  PR/rhoR + PR/rhoR/(gamma-1.0) );
+	
+
+
 	##htN::Float64  = 0.5*(htL + htR - 0.5*(TLeft*TLeft + TRight*TRight));
 	
-	htN::Float64  = 0.5*(htL + htR - 0.5*((_UL*ny - _VL*nx)*(_UL*ny - _VL*nx) + (_UR*ny - _VR*nx)*(_UR*ny - _VR*nx)));
+	#htN::Float64  = 0.5*(htL + htR - 0.5*((_UL*ny - _VL*nx)*(_UL*ny - _VL*nx) + (_UR*ny - _VR*nx)*(_UR*ny - _VR*nx)));
 
 	# aL_dot::Float64 = sqrt(2.0*( gamma-1.0)/(gamma+1.0)*htL);
 	# aL_tilda::Float64 = aL_dot*min(1.0,aL_dot/abs(VL_tilda));
