@@ -53,7 +53,7 @@ dynControls.globalPath = pwd();
 
 
 output = outputCONTROLS(
-	100, #verbosity::Int8;  
+	10, #verbosity::Int8;  
 	"Time[s]\t Tau[s]\t Resid1\t Resid2\t Resid3\t Resid4\t CPUtime [s]", 
 	0, #saveResiduals::Int8;
 	0, #saveResults::Int8; 

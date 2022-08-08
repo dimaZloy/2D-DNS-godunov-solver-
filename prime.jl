@@ -144,15 +144,16 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 
 	gammaV = zeros(Float64,testMesh.nCells);
 	fill!(gammaV, thermo.Gamma);
-
-	cuGammaV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
-	copyto!(cuGammaV, gammaV)
-
 	nx = copy(testMesh.cell_edges_Nx);
 	ny = copy(testMesh.cell_edges_Ny);
 	Sides = copy(testMesh.cell_edges_length);
+	numNeibs = copy(testMesh.mesh_connectivity[:,3]);
 
-#= 
+
+	## DO NOT USE Mem.UnifiedBuffer!!!!
+
+	#= cuGammaV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+
 	curLeftV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
 	cuULeftV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
 	cuVLeftV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
@@ -161,7 +162,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	curRightV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
 	cuURightV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
 	cuVRightV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
-	cuPRightV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells) =#
+	cuPRightV = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells) 
 
 
 	cuNxV1 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
@@ -182,7 +183,48 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
     cuFluxV1 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
     cuFluxV2 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
     cuFluxV3 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
-    cuFluxV4 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+    cuFluxV4 = CuVector{Float64, Mem.UnifiedBuffer}(undef,testMesh.nCells) 
+	
+	cuNeibsV = CuVector{Int32, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	=#
+
+
+	cuGammaV = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuNeibsV = CuVector{Int32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	
+	curLeftV = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuULeftV = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuVLeftV = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuPLeftV = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+
+	curRightV = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuURightV = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuVRightV = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuPRightV = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells) 
+
+
+	cuNxV1 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuNxV2 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuNxV3 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuNxV4 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+
+    cuNyV1 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuNyV2 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuNyV3 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuNyV4 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+
+    cuSideV1 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuSideV2 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuSideV3 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuSideV4 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+
+    cuFluxV1 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+    cuFluxV2 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+    cuFluxV3 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+    cuFluxV4 = CuVector{Float64, Mem.DeviceBuffer}(undef,testMesh.nCells)
+
+
+	copyto!(cuGammaV, gammaV)
 
 	copyto!(cuNxV1, nx[:,1])
 	copyto!(cuNxV2, nx[:,2])
@@ -199,8 +241,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	copyto!(cuSideV3, Sides[:,3])
 	copyto!(cuSideV4, Sides[:,4])
 
-	numNeibs = copy(testMesh.mesh_connectivity[:,3]);
-	cuNeibsV = CuVector{Int32, Mem.UnifiedBuffer}(undef,testMesh.nCells)
+	
+	
 	copyto!(cuNeibsV,numNeibs )
 
 	
@@ -303,6 +345,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			 	 		uLeft, 
 						uRight1, uRight2, uRight3, uRight4,
 						iFluxV1, iFluxV2, iFluxV3, iFluxV4, 
+						curLeftV, cuULeftV, cuVLeftV, cuPLeftV, 
+						curRightV, cuURightV, cuVRightV, cuPRightV, 
 					  	cuNxV1, cuNxV2, cuNxV3, cuNxV4, 
 						cuNyV1, cuNyV2, cuNyV3, cuNyV4, 
 					  	cuSideV1, cuSideV2, cuSideV3, cuSideV4,
@@ -476,9 +520,9 @@ end
 ##@profview godunov2dthreads("2dmixinglayerUp_delta2.bson", numThreads, "2dMixingLayer_delta2", false); 
 
 
-godunov2dthreads("cyl2d_supersonic1",  "cyl2d_supersonic1", false); 
+#godunov2dthreads("cyl2d_supersonic1",  "cyl2d_supersonic1", false); 
 #godunov2dthreads("cyl2d_supersonic2",  "cyl2d_supersonic2", false); 
-#godunov2dthreads("cyl2d_supersonic3",  "cyl2d_supersonic3", false); 
+godunov2dthreads("cyl2d_supersonic3",  "cyl2d_supersonic3", false); 
 
 
 
