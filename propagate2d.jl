@@ -15,23 +15,10 @@ function calcOneStageCUDA(
 	cuURightV::CuVector{Float64, Mem.DeviceBuffer}, 
 	cuVRightV::CuVector{Float64, Mem.DeviceBuffer}, 
 	cuPRightV::CuVector{Float64, Mem.DeviceBuffer}, 
-	cuNxV1::CuVector{Float64, Mem.DeviceBuffer},  
-	cuNxV2::CuVector{Float64, Mem.DeviceBuffer}, 
-	cuNxV3::CuVector{Float64, Mem.DeviceBuffer}, 
-	cuNxV4::CuVector{Float64, Mem.DeviceBuffer}, 
-	cuNyV1::CuVector{Float64, Mem.DeviceBuffer}, 
-	cuNyV2::CuVector{Float64, Mem.DeviceBuffer}, 
-	cuNyV3::CuVector{Float64, Mem.DeviceBuffer}, 
-	cuNyV4::CuVector{Float64, Mem.DeviceBuffer}, 
-	cuSideV1::CuVector{Float64, Mem.DeviceBuffer},
-	cuSideV2::CuVector{Float64, Mem.DeviceBuffer},
-	cuSideV3::CuVector{Float64, Mem.DeviceBuffer},
-	cuSideV4::CuVector{Float64, Mem.DeviceBuffer},
-	cuFluxV1::CuVector{Float64, Mem.DeviceBuffer},
-	cuFluxV2::CuVector{Float64, Mem.DeviceBuffer},
-	cuFluxV3::CuVector{Float64, Mem.DeviceBuffer},
-	cuFluxV4::CuVector{Float64, Mem.DeviceBuffer},
-	cuGammaV::CuVector{Float64, Mem.DeviceBuffer},
+	cuNxV1234::CuVector{Float64, Mem.DeviceBuffer}, #cuNxV1::CuVector{Float64, Mem.DeviceBuffer},  cuNxV2::CuVector{Float64, Mem.DeviceBuffer}, cuNxV3::CuVector{Float64, Mem.DeviceBuffer}, cuNxV4::CuVector{Float64, Mem.DeviceBuffer}, 
+	cuNyV1234::CuVector{Float64, Mem.DeviceBuffer},#cuNyV1::CuVector{Float64, Mem.DeviceBuffer}, cuNyV2::CuVector{Float64, Mem.DeviceBuffer}, cuNyV3::CuVector{Float64, Mem.DeviceBuffer}, cuNyV4::CuVector{Float64, Mem.DeviceBuffer}, 
+	cuSideV1234::CuVector{Float64, Mem.DeviceBuffer}, #cuSideV2::CuVector{Float64, Mem.DeviceBuffer},cuSideV3::CuVector{Float64, Mem.DeviceBuffer},cuSideV4::CuVector{Float64, Mem.DeviceBuffer},
+	cuFluxV1::CuVector{Float64, Mem.DeviceBuffer}, cuFluxV2::CuVector{Float64, Mem.DeviceBuffer}, cuFluxV3::CuVector{Float64, Mem.DeviceBuffer}, cuFluxV4::CuVector{Float64, Mem.DeviceBuffer},
 	cuNeibs::CuVector{Int32, Mem.DeviceBuffer})
 
 	#display("Compute cuda stencils ... ")
@@ -51,9 +38,9 @@ function calcOneStageCUDA(
 
 	# TO DO> update to use more threads then 1024 ! 
 
-	num_blocks = cld(testMeshX.nCells,512);
+	num_blocks = cld(testMeshX.nCells,256);
 
-
+	cuGamma = cudaconvert(thermoX.Gamma); 
 
 	CUDA.@sync begin
 
@@ -61,7 +48,6 @@ function calcOneStageCUDA(
 		fill!(cuFluxV2,0.0);
 		fill!(cuFluxV3,0.0);
 		fill!(cuFluxV4,0.0);
-
 
 		copyto!(curLeftV,uLeft[1,:]);
 		copyto!(cuULeftV,uLeft[2,:]);
@@ -74,10 +60,10 @@ function calcOneStageCUDA(
 		copyto!(cuPRightV,uRight1[4,:]);
 
 
-	 @cuda blocks = num_blocks threads = 512 kernel_AUSM2d(
+	 @cuda blocks = num_blocks threads = 256 kernel_AUSM2d(
 			curRightV, cuURightV, cuVRightV, cuPRightV,
 			curLeftV, cuULeftV, cuVLeftV, cuPLeftV, 
-			 cuNxV1, cuNyV1, cuSideV1, cuFluxV1, cuFluxV2, cuFluxV3,cuFluxV4, cuGammaV);
+			 cuNxV1234, cuNyV1234, cuSideV1234, cuFluxV1, cuFluxV2, cuFluxV3,cuFluxV4, cuGamma, cudaconvert(0));
  
 		 copyto!(curRightV,uRight2[1,:]);
 		 copyto!(cuURightV,uRight2[2,:]);
@@ -85,10 +71,10 @@ function calcOneStageCUDA(
 		 copyto!(cuPRightV,uRight2[4,:]);
 		 
 			
-	 @cuda blocks = num_blocks threads = 512 kernel_AUSM2d(
+	 @cuda blocks = num_blocks threads = 256 kernel_AUSM2d(
 			curRightV, cuURightV, cuVRightV, cuPRightV, 
 			curLeftV, cuULeftV, cuVLeftV, cuPLeftV,  
-			 cuNxV2, cuNyV2, cuSideV2, cuFluxV1, cuFluxV2, cuFluxV3,cuFluxV4,cuGammaV );
+			 cuNxV1234, cuNyV1234, cuSideV1234, cuFluxV1, cuFluxV2, cuFluxV3,cuFluxV4,cuGamma, cudaconvert(1) );
  
 
 		 copyto!(curRightV,uRight3[1,:]);
@@ -97,10 +83,10 @@ function calcOneStageCUDA(
 		 copyto!(cuPRightV,uRight3[4,:]);
  
 
-	 @cuda blocks = num_blocks threads = 512 kernel_AUSM2d(
+	 @cuda blocks = num_blocks threads = 256 kernel_AUSM2d(
 			curRightV, cuURightV, cuVRightV, cuPRightV, 
 			curLeftV, cuULeftV, cuVLeftV, cuPLeftV, 
-			 cuNxV3, cuNyV3, cuSideV3,cuFluxV1, cuFluxV2, cuFluxV3,cuFluxV4,cuGammaV );
+			 cuNxV1234, cuNyV1234, cuSideV1234, cuFluxV1, cuFluxV2, cuFluxV3,cuFluxV4, cuGamma, cudaconvert(2) );
 			
 		#  copyto!(curRightV,uRight4[1,:]);
 		 #  copyto!(cuURightV,uRight4[2,:]);
@@ -113,8 +99,9 @@ function calcOneStageCUDA(
 	#  	 cuNxV3, cuNyV3, cuSideV3,cuFluxV1, cuFluxV2, cuFluxV3,cuFluxV4,cuGammaV, cuNeibs );
 
 
-		 copyto!(iFluxV1,cuFluxV1);
-		 copyto!(iFluxV2,cuFluxV2);
+	
+		copyto!(iFluxV1,cuFluxV1);
+		copyto!(iFluxV2,cuFluxV2);
 		copyto!(iFluxV3,cuFluxV3);
 		copyto!(iFluxV4,cuFluxV4);
 
@@ -131,7 +118,7 @@ function calcOneStageCUDA(
 		 for i = cellsThreadsX[p,1]:cellsThreadsX[p,2]
 		
 			 Rarea::Float64 = 1.0/testMeshX.cell_areas[i];
-				UconsCellsNewX[i,1] = ( UconsCellsOldX[i,1] - iFluxV1[i]*betta*dtX*Rarea + betta*dtX*UconsDiffTermX[i,1] );
+			  UconsCellsNewX[i,1] = ( UconsCellsOldX[i,1] - iFluxV1[i]*betta*dtX*Rarea + betta*dtX*UconsDiffTermX[i,1] );
 			  UconsCellsNewX[i,2] = ( UconsCellsOldX[i,2] - iFluxV2[i]*betta*dtX*Rarea + betta*dtX*UconsDiffTermX[i,2] );
 			  UconsCellsNewX[i,3] = ( UconsCellsOldX[i,3] - iFluxV3[i]*betta*dtX*Rarea + betta*dtX*UconsDiffTermX[i,3] );
 			  UconsCellsNewX[i,4] = ( UconsCellsOldX[i,4] - iFluxV4[i]*betta*dtX*Rarea + betta*dtX*UconsDiffTermX[i,4] );

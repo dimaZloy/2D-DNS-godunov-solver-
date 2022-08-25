@@ -3,6 +3,89 @@
 
 
 
+# function createMesh2dShared(testMesh::mesh2d_Int32)::mesh2d_shared
+
+
+
+	# n = size(testMesh.mesh_connectivity,2);
+	# mesh_connectivity = SharedArray{Int32}(testMesh.nCells,n);
+	
+	# n = size(testMesh.cell_edges_length,2);
+	# cell_edges_length = SharedArray{Float64}(testMesh.nCells,n);
+	
+	# n = size(testMesh.cell_edges_Nx,2);
+	# cell_edges_Nx = SharedArray{Float64}(testMesh.nCells,n);
+	# cell_edges_Ny = SharedArray{Float64}(testMesh.nCells,n);
+	
+	# n = size(testMesh.cell_stiffness,2);
+	# cell_stiffness = SharedArray{Int32}(testMesh.nCells,n);
+	
+	# #n = size(testMesh.Z,2);
+	# Z = SharedArray{Float64}(testMesh.nCells);
+	
+	# cell_areas = SharedArray{Float64}(testMesh.nCells);
+	# cell_mid_points = SharedArray{Float64}(testMesh.nCells,2);
+
+	# cell_clusters = SharedArray{Int32}(testMesh.nNodes, Int64(testMesh.nNeibCells));
+	# node_stencils = SharedArray{Float64}(testMesh.nNodes, Int64(testMesh.nNeibCells));
+	
+	
+	# for i = 1:testMesh.nNodes
+		# cell_clusters[i,:] = testMesh.cell_clusters[i,:];
+		# node_stencils[i,:] = testMesh.node_stencils[i,:];
+	# end
+	
+	
+	# node2cellsL2up = SharedArray{Int32}(testMesh.nCells,8);
+	# node2cellsL2down = SharedArray{Int32}(testMesh.nCells,8);
+	
+	
+	# HX = SharedArray{Float64}(testMesh.nCells);
+	# cells2nodes = SharedArray{Int32}(testMesh.nCells,8);
+	
+	
+	# for i = 1:testMesh.nCells
+	
+		# mesh_connectivity[i,:] = testMesh.mesh_connectivity[i,:];
+		# cell_mid_points[i,:] = testMesh.cell_mid_points[i,:];
+		# cell_edges_length[i,:] = testMesh.cell_edges_length[i,:];
+		# cell_edges_Nx[i,:] = testMesh.cell_edges_Nx[i,:];
+		# cell_edges_Ny[i,:] = testMesh.cell_edges_Ny[i,:];
+		# cell_stiffness[i,:] = testMesh.cell_stiffness[i,:];
+		# Z[i] = 1.0/testMesh.cell_areas[i];
+		# HX[i] = testMesh.HX[i];
+		# cell_areas[i]  = testMesh.cell_areas[i];
+		# node2cellsL2up[i,:] = testMesh.node2cellsL2up[i,:];
+		# node2cellsL2down[i,:] = testMesh.node2cellsL2down[i,:];
+		# cells2nodes[i,:] = testMesh.cells2nodes[i,:];
+	
+	# end
+	
+	
+	
+	# testMeshDistr = mesh2d_shared(
+		# mesh_connectivity,
+		# cell_mid_points,
+		# cell_areas,
+		# Z,
+		# HX, 
+		# cell_edges_Nx,
+		# cell_edges_Ny,
+		# cell_edges_length,
+		# cell_stiffness,
+		# cell_clusters,
+		# node_stencils,
+		# node2cellsL2up,
+		# node2cellsL2down,
+		# cells2nodes);
+	
+	
+	# return testMeshDistr;
+
+# end
+
+
+
 
 function createFields2dLoadPrevResults_shared(testMesh::mesh2d_Int32, thermo::THERMOPHYSICS, filename::String, dynControls::DYNAMICCONTROLS )
 
@@ -79,30 +162,17 @@ function createViscousFields2d(nCells::Int64, nNodes::Int64)::viscousFields2d
 	dVdxCells = zeros(Float64,nCells);
 	dVdyCells = zeros(Float64,nCells);
 	
-	# dUdxNodes = zeros(Float64,nNodes);
-	# dUdyNodes = zeros(Float64,nNodes);
-	
-	# dVdxNodes = zeros(Float64,nNodes);
-	# dVdyNodes = zeros(Float64,nNodes);
-	
 	laplasUCuCells = zeros(Float64,nCells);
 	laplasUCvCells = zeros(Float64,nCells);
 	laplasUCeCells = zeros(Float64,nCells);
 	
 	cdUdxCells = zeros(Float64,nCells);
 	cdUdyCells = zeros(Float64,nCells);
+	
 	cdVdxCells = zeros(Float64,nCells);
 	cdVdyCells = zeros(Float64,nCells);
 	cdEdxCells = zeros(Float64,nCells);
 	cdEdyCells = zeros(Float64,nCells);
-	
-	cdUdxNodes = zeros(Float64,nNodes);
-	cdUdyNodes = zeros(Float64,nNodes);
-	cdVdxNodes = zeros(Float64,nNodes);
-	cdVdyNodes = zeros(Float64,nNodes);
-	cdEdxNodes = zeros(Float64,nNodes);
-	cdEdyNodes = zeros(Float64,nNodes);
-	
 	
 	viscous2d = viscousFields2d(
 		artViscosityCells,
@@ -119,14 +189,7 @@ function createViscousFields2d(nCells::Int64, nNodes::Int64)::viscousFields2d
 		cdVdxCells,
 		cdVdyCells,
 		cdEdxCells,
-		cdEdyCells,
-		cdUdxNodes,
-		cdUdyNodes,
-		cdVdxNodes,
-		cdVdyNodes,
-		cdEdxNodes,
-		cdEdyNodes
-		
+		cdEdyCells
 	);
 
 	return viscous2d; 
@@ -144,10 +207,6 @@ function createFields2d(testMesh::mesh2d_Int32, thermo::THERMOPHYSICS)
 	pressureCells = zeros(Float64,testMesh.nCells); 
 	aSoundCells   = zeros(Float64,testMesh.nCells); #speed of sound
 	VMAXCells     = zeros(Float64,testMesh.nCells); #max speed in domain
-	temperatureCells = zeros(Float64,testMesh.nCells); 
-	gammaCells = zeros(Float64,testMesh.nCells); 
-	kCells= zeros(Float64,testMesh.nCells); 
-	cflCells= zeros(Float64,testMesh.nCells); 
 	
 	densityNodes  = zeros(Float64,testMesh.nNodes); 
 	UxNodes       = zeros(Float64,testMesh.nNodes); 
@@ -156,13 +215,11 @@ function createFields2d(testMesh::mesh2d_Int32, thermo::THERMOPHYSICS)
 
 	for i=1:testMesh.nCells
 
-		densityCells[i] 	= 0.6380;
-		UxCells[i] 			= 712.145;
+		densityCells[i] 	= 1.1766;
+		UxCells[i] 			= 1232.6445;
 		UyCells[i] 			= 0.0; 
-		pressureCells[i] 	= 50000.0;
-		temperatureCells[i] 	= pressureCells[i]/densityCells[i]/ thermo.RGAS;
-		kCells[i] 	= thermo.kFromT(temperatureCells[i]);
-		gammaCells[i] = thermo.gammaFromT(temperatureCells[i]);
+		pressureCells[i] 	= 101325.0;
+		
 		aSoundCells[i] = sqrt( thermo.Gamma * pressureCells[i]/densityCells[i] );
 		VMAXCells[i]  = sqrt( UxCells[i]*UxCells[i] + UyCells[i]*UyCells[i] ) + aSoundCells[i];
 		#entropyCell[i] = UphysCells[i,1]/(thermo.Gamma-1.0)*log(UphysCells[i,4]/UphysCells[i,1]*thermo.Gamma);
@@ -179,10 +236,6 @@ function createFields2d(testMesh::mesh2d_Int32, thermo::THERMOPHYSICS)
 		pressureCells,
 		aSoundCells,
 		VMAXCells,
-		temperatureCells,
-		gammaCells,
-		kCells,
-		cflCells, 
 		densityNodes,
 		UxNodes,
 		UyNodes,

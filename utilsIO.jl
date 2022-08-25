@@ -150,12 +150,6 @@ function readMesh2dHDF5(pname::String)::mesh2d_Int32
 	cell_mid_points = h5open(filename,"r") do file
 		read(file,"cell_mid_points");
 	end	
-
-	cell_wall_distances = h5open(filename,"r") do file
-		read(file,"cell_wall_distances");
-	end	
-
-	
 	cell_areas = h5open(filename,"r") do file
 		read(file,"cell_areas");
 	end	
@@ -242,7 +236,6 @@ function readMesh2dHDF5(pname::String)::mesh2d_Int32
 		cell_nodes_X, 			## [nCellsx4]
 		cell_nodes_Y, 			## [nCellsx4]
 		cell_mid_points, 		## [nCellsx2]
-		cell_wall_distances,	## [nCellsx4]
 		cell_areas, 			## [nCellsx1]
 		HX,
 		cell_edges_Nx, 			## [nCellsx4]

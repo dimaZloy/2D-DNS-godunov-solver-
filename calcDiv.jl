@@ -17,10 +17,10 @@
 		nx = zeros(Float64,4);
 		ny = zeros(Float64,4);
 		
-		# T1::Int32 = 0;
-		# T2::Int32 = 0;
-		# T3::Int32 = 0;
-		# T4::Int32 = 0;
+		T1::Int32 = 0;
+		T2::Int32 = 0;
+		T3::Int32 = 0;
+		T4::Int32 = 0;
  
 
   for C = beginCell:endCell
@@ -29,9 +29,9 @@
 		##numNodesInCell::Int32 = testMesh.mesh_connectivity[C,3]; ## CMatrix mesh_connectivity - first index == 1
 		
 		
-		# T1 = testMesh.mesh_connectivity[C,4];
-		# T2 = testMesh.mesh_connectivity[C,5];
-		# T3 = testMesh.mesh_connectivity[C,6];
+		T1 = testMesh.mesh_connectivity[C,4];
+		T2 = testMesh.mesh_connectivity[C,5];
+		T3 = testMesh.mesh_connectivity[C,6];
 	  
 		side[1] = testMesh.cell_edges_length[C,1];
 		side[2] = testMesh.cell_edges_length[C,2];
@@ -67,7 +67,7 @@
 
 		if (testMesh.mesh_connectivity[C,3] == 4)
 	  
-			# T4 = testMesh.mesh_connectivity[C,7];
+			T4 = testMesh.mesh_connectivity[C,7];
 			side[4] = testMesh.cell_edges_length[C,4];
 			nx[4] = testMesh.cell_edges_Nx[C,4];
 			ny[4] = testMesh.cell_edges_Nx[C,4];
@@ -138,9 +138,9 @@ end ## end of function
 		numNodesInCell::Int32 = testMesh.mesh_connectivity[C,3]; ## CMatrix mesh_connectivity - first index == 1
 		
 		
-		# T1::Int32 = testMesh.mesh_connectivity[C,4];
-		# T2::Int32 = testMesh.mesh_connectivity[C,5];
-		# T3::Int32 = testMesh.mesh_connectivity[C,6];
+		T1::Int32 = testMesh.mesh_connectivity[C,4];
+		T2::Int32 = testMesh.mesh_connectivity[C,5];
+		T3::Int32 = testMesh.mesh_connectivity[C,6];
 	  
 		side[1] = testMesh.cell_edges_length[C,1];
 		side[2] = testMesh.cell_edges_length[C,2];
@@ -176,7 +176,7 @@ end ## end of function
 
 		if (numNodesInCell == 4)
 	  
-			#T4::Int32 = testMesh.mesh_connectivity[C,7];
+			T4::Int32 = testMesh.mesh_connectivity[C,7];
 			side[4] = testMesh.cell_edges_length[C,4];
 			nx[4] = testMesh.cell_edges_Nx[C,4];
 			ny[4] = testMesh.cell_edges_Nx[C,4];
