@@ -38,9 +38,13 @@ include("calcArtViscosity.jl");
 include("calcDiffterm.jl");
 
 include("bcInviscidWall.jl"); 
-include("boundaryConditions2d.jl"); 
 
-include("initfields2d.jl");
+include("boundaryConditions_jet2d.jl");
+include("initfields_jet2d.jl");
+
+
+#include("boundaryConditions_ML2d.jl");
+#include("initfields_ML2d.jl");
 ## initfields2d::distibuteCellsInThreadsSA()
 ## initfields2d::createFields2d_shared()
 
@@ -84,7 +88,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	nodesThreads = distibuteNodesInThreadsSA(Threads.nthreads(), testMesh.nNodes); ## partition mesh 
 	
 
-	include("setupSolver2d.jl"); #setup FVM and numerical schemes
+	#include("setupSolver_ML2d.jl"); #setup FVM and numerical schemes
+	include("setupSolver_jet2d.jl"); #setup FVM and numerical schemes
 	
 	
 	## init primitive variables 
@@ -361,7 +366,26 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			#doExplicitRK3TVD(1.0, dtX, testMeshDistrX , testfields2dX, thermoX, cellsThreadsX,  UconsCellsOldX, iFLUXX,  UConsDiffCellsX, 
 			#  UconsCellsNew1X,UconsCellsNew2X,UconsCellsNew3X,UconsCellsNewX);
 			
+			
+			if (solControls.densityConstrained==1)
+
+				Threads.@threads for p in 1:Threads.nthreads()
+					for i = cellsThreads[p,1]:cellsThreads[p,2]
 						
+						if testfields2d.densityCells[i] >= solControls.maxDensityConstrained
+							testfields2d.densityCells[i] = solControls.maxDensityConstrained;
+						end		
+						if testfields2d.densityCells[i] <= solControls.minDensityConstrained
+							testfields2d.densityCells[i] = solControls.minDensityConstrained;
+						end		
+
+					end
+				end
+			end
+
+			(dynControls.rhoMax,id) = findmax(testfields2d.densityCells);
+			(dynControls.rhoMin,id) = findmin(testfields2d.densityCells);
+
 			
 			#@sync @distributed for p in workers()
 			Threads.@threads for p in 1:Threads.nthreads()			
@@ -395,8 +419,6 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			#cells2nodesSolutionReconstructionWithStencilsSerial(testMeshX,testfields2dX, viscfields2dX, UconsCellsOldX,  UconsNodesOldX);
 								
 	
-			(dynControls.rhoMax,id) = findmax(testfields2d.densityCells);
-			(dynControls.rhoMin,id) = findmin(testfields2d.densityCells);
 			
 
 			push!(timeVector, dynControls.flowTime); 
@@ -511,9 +533,8 @@ end
 ##@profview godunov2dthreads("2dmixinglayerUp_delta2.bson", numThreads, "2dMixingLayer_delta2", false); 
 
 
-#godunov2dthreads("cyl2d_supersonic1",  "cyl2d_supersonic1", false); 
-#godunov2dthreads("cyl2d_supersonic2",  "cyl2d_supersonic2", false); 
-godunov2dthreads("cyl2d_supersonic3",  "cyl2d_supersonic3", false); 
+godunov2dthreads("jet2d_v00tri",  "jet2d_v00tri", false); 
+
 
 
 

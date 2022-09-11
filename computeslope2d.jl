@@ -124,9 +124,10 @@
 	UpRight[4] = uRightp[4] - 0.5*Minmod_Limiter( uRightp[4] - uLeftp[4], uUpp[4]  - uRightp[4],  ksi);
 	
 						
-	#AUSMplusFlux2d(UpRight,UpLeft, nx,ny,side,thermo.Gamma);	
-	AUSMplusFlux2dFast(UpRight[1],UpRight[2],UpRight[3],UpRight[4],UpLeft[1],UpLeft[2],UpLeft[3],UpLeft[4], nx,ny,side,thermo.Gamma, flux);	
 	
+	#AUSMplusFlux2dFast(UpRight[1],UpRight[2],UpRight[3],UpRight[4],UpLeft[1],UpLeft[2],UpLeft[3],UpLeft[4], nx,ny,side,thermo.Gamma, flux);	
+	AUSMplusM2020Flux2dFast(UpRight[1],UpRight[2],UpRight[3],UpRight[4],UpLeft[1],UpLeft[2],UpLeft[3],UpLeft[4], nx,ny,side,thermo.Gamma, flux);	
+	#AUSMplusUpFlux2dFast(UpRight[1],UpRight[2],UpRight[3],UpRight[4],UpLeft[1],UpLeft[2],UpLeft[3],UpLeft[4], nx,ny,side,thermo.Gamma, flux);	
 	
 	
 
