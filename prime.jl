@@ -22,8 +22,9 @@ include("utilsIO.jl");
 
 
 include("AUSMflux2dFast.jl"); #AUSM+ inviscid flux calculation 
+include("RoeFlux2dFast.jl");
 include("AUSMflux2dCUDA.jl");
-#include("RoeFlux2dCUDA.jl");
+include("RoeFlux2dCUDA.jl");
 
 include("utilsFVM2dp.jl"); #FVM utililities
 ## utilsFVM2dp::cells2nodesSolutionReconstructionWithStencilsImplicitSA
@@ -300,7 +301,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	# @everywhere maxEdgeX = $maxEdge; 
 
 	debug = true;	
-	useArtViscoistyDapming = true;
+	viscous = true;
 
 	
 	println("Start calculations ...");
@@ -323,7 +324,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			dynControls.tau = solControls.CFL * maxEdge/(max(dynControls.velmax,1.0e-6));
 		
 			
-			if (useArtViscoistyDapming)
+			if (viscous)
 			
 				calcArtificialViscositySA( cellsThreads, testMesh, thermo, testfields2d, viscfields2d);		
 				calcDiffTerm(cellsThreads, testMesh, testfields2d, viscfields2d, thermo, UconsNodesOldX, UConsDiffCellsX, UConsDiffNodesX);

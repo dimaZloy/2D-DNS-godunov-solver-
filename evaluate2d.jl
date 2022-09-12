@@ -150,7 +150,7 @@ end
 
 
 			
-			subplot(3,1,1);	
+			subplot(2,1,1);	
 			cla();
 			
 			##tricontourf(testMesh.xNodes,testMesh.yNodes, triangles, densityF,pControls.nContours,vmin=pControls.rhoMINcont,vmax=pControls.rhoMAXcont);
@@ -162,21 +162,21 @@ end
 			title("Contours of density");
 			axis("equal");
 
-			subplot(3,1,2);	
-			cla();
+			#subplot(3,1,2);	
+			#cla();
 			
-			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFieldsViscous.artViscosityNodes);
+			#tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFieldsViscous.artViscosityNodes);
 			
-			set_cmap("jet");
-			xlabel("x");
-			ylabel("y");
-			title("Contours of Artificial viscosity");
-			axis("equal");
-			
-			
+			#set_cmap("jet");
+			#xlabel("x");
+			#ylabel("y");
+			#title("Contours of Artificial viscosity");
+			#axis("equal");
 			
 			
-			subplot(3,1,3);
+			
+			
+			subplot(2,1,2);
 			cla();
 			
 			if (size(timeVector,1) >1)

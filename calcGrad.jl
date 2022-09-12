@@ -14,10 +14,10 @@
  	nx = zeros(Float64,4);
     ny = zeros(Float64,4);
 	
-	T1::Int32 = 0;
-	T2::Int32 = 0;
-	T3::Int32 = 0;
-	T4::Int32 = 0;
+	# T1::Int32 = 0;
+	# T2::Int32 = 0;
+	# T3::Int32 = 0;
+	# T4::Int32 = 0;
 
   for C =  beginCell:endCell
   
@@ -26,9 +26,9 @@
 	  
 	  ## areaCell::Float64 = testMesh.cell_areas[C]; 
 	  
-	  T1 = testMesh.mesh_connectivity[C,4];
-	  T2 = testMesh.mesh_connectivity[C,5];
-	  T3 = testMesh.mesh_connectivity[C,6];
+	#   T1 = testMesh.mesh_connectivity[C,4];
+	#   T2 = testMesh.mesh_connectivity[C,5];
+	#   T3 = testMesh.mesh_connectivity[C,6];
 	  
 	  side[1] = testMesh.cell_edges_length[C,1];
 	  side[2] = testMesh.cell_edges_length[C,2];
@@ -55,7 +55,7 @@
 
 	  if (testMesh.mesh_connectivity[C,3] == 4) ## if number of node cells == 4 
 	  
-	    T4 = testMesh.mesh_connectivity[C,7];
+	    # T4 = testMesh.mesh_connectivity[C,7];
 		side[4] = testMesh.cell_edges_length[C,4];
 		nx[4] = testMesh.cell_edges_Nx[C,4];
 		ny[4] = testMesh.cell_edges_Nx[C,4];
@@ -117,9 +117,9 @@ end
 	  
 	  areaCell::Float64 = testMesh.cell_areas[C]; 
 	  
-	  T1::Int32 = testMesh.mesh_connectivity[C,4];
-	  T2::Int32 = testMesh.mesh_connectivity[C,5];
-	  T3::Int32 = testMesh.mesh_connectivity[C,6];
+	#   T1::Int32 = testMesh.mesh_connectivity[C,4];
+	#   T2::Int32 = testMesh.mesh_connectivity[C,5];
+	#   T3::Int32 = testMesh.mesh_connectivity[C,6];
 	  
 	  side[1] = testMesh.cell_edges_length[C,1];
 	  side[2] = testMesh.cell_edges_length[C,2];
@@ -149,7 +149,7 @@ end
 
 	  if (numNodesInCell == 4)
 	  
-	    T4::Int32 = testMesh.mesh_connectivity[C,7];
+	    # T4::Int32 = testMesh.mesh_connectivity[C,7];
 		side[4] = testMesh.cell_edges_length[C,4];
 		nx[4] = testMesh.cell_edges_Nx[C,4];
 		ny[4] = testMesh.cell_edges_Nx[C,4];
@@ -203,10 +203,10 @@ end
 		nx = zeros(Float64,4);
 		ny = zeros(Float64,4);
 		
-		T1::Int32 = 0;
-		T2::Int32 = 0;
-		T3::Int32 = 0;
-		T4::Int32 = 0;
+		# T1::Int32 = 0;
+		# T2::Int32 = 0;
+		# T3::Int32 = 0;
+		# T4::Int32 = 0;
 		
 		Rarea::Float64 = 0.0;
 
@@ -220,9 +220,9 @@ end
 		  
 		  ##areaCell::Float64 = testMesh.cell_areas[C]; 
 		  
-		  T1 = testMesh.mesh_connectivity[C,4];
-		  T2 = testMesh.mesh_connectivity[C,5];
-		  T3 = testMesh.mesh_connectivity[C,6];
+		#   T1 = testMesh.mesh_connectivity[C,4];
+		#   T2 = testMesh.mesh_connectivity[C,5];
+		#   T3 = testMesh.mesh_connectivity[C,6];
 		  
 		  side[1] = testMesh.cell_edges_length[C,1];
 		  side[2] = testMesh.cell_edges_length[C,2];
@@ -252,7 +252,7 @@ end
 
 		  if (testMesh.mesh_connectivity[C,3] == 4)
 		  
-			T4 = testMesh.mesh_connectivity[C,7];
+			# T4 = testMesh.mesh_connectivity[C,7];
 			side[4] = testMesh.cell_edges_length[C,4];
 			nx[4] = testMesh.cell_edges_Nx[C,4];
 			ny[4] = testMesh.cell_edges_Nx[C,4];
