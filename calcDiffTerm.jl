@@ -6,7 +6,7 @@ function calcDiffTerm(cellsThreadsX::Array{Int32,2}, testMeshDistrX::mesh2d_Int3
 
 
 		Threads.@threads for p in 1:Threads.nthreads()
-		#@sync @distributed for p in workers()	
+		
 	
 			beginCell::Int32 = cellsThreadsX[p,1];
 			endCell::Int32 = cellsThreadsX[p,2];
@@ -17,7 +17,7 @@ function calcDiffTerm(cellsThreadsX::Array{Int32,2}, testMeshDistrX::mesh2d_Int3
 		
 		
 		Threads.@threads for p in 1:Threads.nthreads()
-		#@sync @distributed for p in workers()	
+	
 	
 			beginCell::Int32 = cellsThreadsX[p,1];
 			endCell::Int32 = cellsThreadsX[p,2];
@@ -30,16 +30,13 @@ function calcDiffTerm(cellsThreadsX::Array{Int32,2}, testMeshDistrX::mesh2d_Int3
 			
 		end
 		
-		
-		##display(viscousFields2dX.laplasUCeCells)
+	
 
 		Threads.@threads for p in 1:Threads.nthreads()	
-		#@sync @distributed for p in workers()	
+	
 	
 			beginCell::Int32 = cellsThreadsX[p,1];
 			endCell::Int32 = cellsThreadsX[p,2];
-			avEpsilon::Float64 = 1e-5;
-			Pr::Float64 = 3.0/4.0;
 			
 			
 			for i = beginCell:endCell
@@ -54,10 +51,16 @@ function calcDiffTerm(cellsThreadsX::Array{Int32,2}, testMeshDistrX::mesh2d_Int3
 					# UConsDiffCells[i,4] = viscousFields2dX.artViscosityCells[i]*thermoX.Cp/Pr*viscousFields2dX.laplasUCeCells[i];
 
 				# end
+
+				T::Float64 = testfields2dX.pressureCells[i]/testfields2dX.densityCells[i]/thermoX.RGAS;
+				mu::Float64 = calcAirViscosityPowerLawFromT(T);
+				#Pr::Float64 = 3.0/4.0;
+			
 				
-				UConsDiffCells[i,2] = avEpsilon*viscousFields2dX.laplasUCuCells[i];
-				UConsDiffCells[i,3] = avEpsilon*viscousFields2dX.laplasUCvCells[i];
-				UConsDiffCells[i,4] = avEpsilon*thermoX.Cp/Pr*viscousFields2dX.laplasUCeCells[i];
+				UConsDiffCells[i,2] = mu*viscousFields2dX.laplasUCuCells[i];
+				UConsDiffCells[i,3] = mu*viscousFields2dX.laplasUCvCells[i];
+				#UConsDiffCells[i,4] = mu*thermoX.Cp/Pr*viscousFields2dX.laplasUCeCells[i];
+				UConsDiffCells[i,4] = mu*calcAirConductivityFromT(T,thermoX)*viscousFields2dX.laplasUCeCells[i];
 
 
 			end

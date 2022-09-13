@@ -2,7 +2,7 @@
 println("set numerics ...");
 
 
-thermo = THERMOPHYSICS(287.058,1.4,1000.0,0.0,0.0);
+thermo = THERMOPHYSICS(8.314462e+3/28.9647,1.4,1005.0,1.716e-5,0.025);
 
 
 solver = SOLVER2D(
@@ -21,8 +21,8 @@ solControls = CONTROLS(
 	0.01,  # actual physical time to stop simulation 
 	1, # flag to plot residuals
 	1, # flag to constrain density
-	0.05, # minDensityConstrained::Float64;
-	7.0 # maxDensityConstrained::Float64;	
+	0.01, # minDensityConstrained::Float64;
+	10.0 # maxDensityConstrained::Float64;	
 	);
 
 pControls = plotCONTROLS(
