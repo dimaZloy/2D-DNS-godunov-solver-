@@ -41,9 +41,9 @@
 		nx[2] = testMesh.cell_edges_Nx[C,2];
 		nx[3] = testMesh.cell_edges_Nx[C,3];
 	  
-		ny[1] = testMesh.cell_edges_Nx[C,1];
-		ny[2] = testMesh.cell_edges_Nx[C,2];
-		ny[3] = testMesh.cell_edges_Nx[C,3];
+		ny[1] = testMesh.cell_edges_Ny[C,1];
+		ny[2] = testMesh.cell_edges_Ny[C,2];
+		ny[3] = testMesh.cell_edges_Ny[C,3];
 		
 
 		phiLeftX[1] =  gradX[ testMesh.cells2nodes[C,1] ];
@@ -70,7 +70,7 @@
 			# T4 = testMesh.mesh_connectivity[C,7];
 			side[4] = testMesh.cell_edges_length[C,4];
 			nx[4] = testMesh.cell_edges_Nx[C,4];
-			ny[4] = testMesh.cell_edges_Nx[C,4];
+			ny[4] = testMesh.cell_edges_Ny[C,4];
 
 
 			phiLeftX[4] =  gradX[ testMesh.cells2nodes[C,7] ];
@@ -150,9 +150,9 @@ end ## end of function
 		nx[2] = testMesh.cell_edges_Nx[C,2];
 		nx[3] = testMesh.cell_edges_Nx[C,3];
 	  
-		ny[1] = testMesh.cell_edges_Nx[C,1];
-		ny[2] = testMesh.cell_edges_Nx[C,2];
-		ny[3] = testMesh.cell_edges_Nx[C,3];
+		ny[1] = testMesh.cell_edges_Ny[C,1];
+		ny[2] = testMesh.cell_edges_Ny[C,2];
+		ny[3] = testMesh.cell_edges_Ny[C,3];
 		
 
 		phiLeftX[1] =  gradX[ testMesh.cells2nodes[C,1] ];
@@ -179,7 +179,7 @@ end ## end of function
 			# T4::Int32 = testMesh.mesh_connectivity[C,7];
 			side[4] = testMesh.cell_edges_length[C,4];
 			nx[4] = testMesh.cell_edges_Nx[C,4];
-			ny[4] = testMesh.cell_edges_Nx[C,4];
+			ny[4] = testMesh.cell_edges_Ny[C,4];
 
 
 			phiLeftX[4] =  gradX[ testMesh.cells2nodes[C,7] ];

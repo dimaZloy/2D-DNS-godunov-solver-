@@ -38,9 +38,9 @@
 	  nx[2] = testMesh.cell_edges_Nx[C,2];
 	  nx[3] = testMesh.cell_edges_Nx[C,3];
 	  
-      ny[1] = testMesh.cell_edges_Nx[C,1];
-	  ny[2] = testMesh.cell_edges_Nx[C,2];
-	  ny[3] = testMesh.cell_edges_Nx[C,3];
+      ny[1] = testMesh.cell_edges_Ny[C,1];
+	  ny[2] = testMesh.cell_edges_Ny[C,2];
+	  ny[3] = testMesh.cell_edges_Ny[C,3];
 	  
 
 	  phiLeft[1] =  scalarField[ testMesh.cells2nodes[C,1] ];
@@ -58,7 +58,7 @@
 	    # T4 = testMesh.mesh_connectivity[C,7];
 		side[4] = testMesh.cell_edges_length[C,4];
 		nx[4] = testMesh.cell_edges_Nx[C,4];
-		ny[4] = testMesh.cell_edges_Nx[C,4];
+		ny[4] = testMesh.cell_edges_Ny[C,4];
 
 		phiLeft[4] =  scalarField[ testMesh.cells2nodes[C,7] ];
 		phiRight[4] = scalarField[ testMesh.cells2nodes[C,8] ];
@@ -129,9 +129,9 @@ end
 	  nx[2] = testMesh.cell_edges_Nx[C,2];
 	  nx[3] = testMesh.cell_edges_Nx[C,3];
 	  
-      ny[1] = testMesh.cell_edges_Nx[C,1];
-	  ny[2] = testMesh.cell_edges_Nx[C,2];
-	  ny[3] = testMesh.cell_edges_Nx[C,3];
+      ny[1] = testMesh.cell_edges_Ny[C,1];
+	  ny[2] = testMesh.cell_edges_Ny[C,2];
+	  ny[3] = testMesh.cell_edges_Ny[C,3];
 	  
 	  
 	  
@@ -152,7 +152,7 @@ end
 	    # T4::Int32 = testMesh.mesh_connectivity[C,7];
 		side[4] = testMesh.cell_edges_length[C,4];
 		nx[4] = testMesh.cell_edges_Nx[C,4];
-		ny[4] = testMesh.cell_edges_Nx[C,4];
+		ny[4] = testMesh.cell_edges_Ny[C,4];
 
 		phiLeft[4] =  scalarField[ testMesh.cells2nodes[C,7] ];
 		phiRight[4] = scalarField[ testMesh.cells2nodes[C,8] ];
@@ -232,9 +232,9 @@ end
 		  nx[2] = testMesh.cell_edges_Nx[C,2];
 		  nx[3] = testMesh.cell_edges_Nx[C,3];
 		  
-		  ny[1] = testMesh.cell_edges_Nx[C,1];
-		  ny[2] = testMesh.cell_edges_Nx[C,2];
-		  ny[3] = testMesh.cell_edges_Nx[C,3];
+		  ny[1] = testMesh.cell_edges_Ny[C,1];
+		  ny[2] = testMesh.cell_edges_Ny[C,2];
+		  ny[3] = testMesh.cell_edges_Ny[C,3];
 		  
 		  
 		  
@@ -255,7 +255,7 @@ end
 			# T4 = testMesh.mesh_connectivity[C,7];
 			side[4] = testMesh.cell_edges_length[C,4];
 			nx[4] = testMesh.cell_edges_Nx[C,4];
-			ny[4] = testMesh.cell_edges_Nx[C,4];
+			ny[4] = testMesh.cell_edges_Ny[C,4];
 
 			phiLeft[4] =  ucons[ testMesh.cells2nodes[C,7] ,V  ];
 			phiRight[4] = ucons[ testMesh.cells2nodes[C,8] ,V ];
