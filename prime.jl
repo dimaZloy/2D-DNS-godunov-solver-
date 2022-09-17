@@ -41,6 +41,7 @@ include("calcDiffterm.jl");
 include("bcInviscidWall.jl"); 
 
 include("boundaryConditions_jet2d.jl");
+include("loadPrevResults.jl");
 include("initfields_jet2d.jl");
 
 
@@ -73,15 +74,23 @@ include("propagate2d.jl");
 
 
 
+function ksi(r::Float64, a::Float64, b::Float64, rs::Float64, re::Float64)::Float64
 
+	## rb = (r-rs)/(re-rs)
+	return (1.0 - a*(r-rs)/(re-rs)*(r-rs)/(re-rs))* (1.0 - (1.0 - exp(b*(r-rs)/(re-rs)*(r-rs)/(re-rs)))/(1.0 - exp(b)));
+end
 
 
 function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 
 
 	useCuda = false;
+	debug = true;	
+	viscous = true;
+	damping = true;
+	flag2loadPreviousResults = true;
 
-	flag2loadPreviousResults = false;
+
 
 	testMesh = readMesh2dHDF5(pname);
 		
@@ -95,6 +104,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	
 	## init primitive variables 
 	println("set initial and boundary conditions ...");
+	
 	
 	#testfields2d = createFields2d_shared(testMesh, thermo);
 	testfields2d = createFields2d(testMesh, thermo);
@@ -110,7 +120,9 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	);
 	
 	
-	#(testfields2d, solInst) = createFields2dLoadPrevResults_shared(testMesh, thermo, "zzz13700", dynControls);
+	if (flag2loadPreviousResults)
+		loadPrevResults(testMesh, thermo, "jet2d_v02tri.tmp", dynControls, testfields2d);
+	end
 	
 	
 	
@@ -300,8 +312,12 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	# @everywhere dtX = $dt; 
 	# @everywhere maxEdgeX = $maxEdge; 
 
-	debug = true;	
-	viscous = true;
+	
+	UconsRef = zeros(4);
+	UconsRef[1] = 1.1766766855256956;
+	UconsRef[2] = 1.1766766855256956*19.964645104094163;
+	UconsRef[3] = 0.0;
+	UconsRef[4] = 101325.0/(thermo.Gamma -1.0) + 0.5*1.1766766855256956*(19.964645104094163*19.964645104094163 + 0.0*0.0);
 
 	
 	println("Start calculations ...");
@@ -363,6 +379,24 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			end
 
 
+			if (damping)
+
+				Threads.@threads for p in 1:Threads.nthreads()
+					for i = cellsThreads[p,1]:cellsThreads[p,2]
+						
+						# calc rad = sqrt(x*x + yy)
+						r::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1]  + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2] ); 
+						if r >= 2.0
+							UconsCellsNewX[i,1] = 	UconsCellsNewX[i,1] - ksi(r,0.01,10.0,2.0,4.0)*( UconsCellsNewX[i,1] - UconsRef[1]) ;
+							UconsCellsNewX[i,2] = 	UconsCellsNewX[i,2] - ksi(r,0.01,10.0,2.0,4.0)*( UconsCellsNewX[i,2] - UconsRef[2]) ;
+							UconsCellsNewX[i,3] = 	UconsCellsNewX[i,3] - ksi(r,0.01,10.0,2.0,4.0)*( UconsCellsNewX[i,3] - UconsRef[3]) ;
+							UconsCellsNewX[i,4] = 	UconsCellsNewX[i,4] - ksi(r,0.01,10.0,2.0,4.0)*( UconsCellsNewX[i,4] - UconsRef[4]) ;
+						end
+					
+					end
+				end
+
+			end
 			
 			#doExplicitRK3TVD(1.0, dtX, testMeshDistrX , testfields2dX, thermoX, cellsThreadsX,  UconsCellsOldX, iFLUXX,  UConsDiffCellsX, 
 			#  UconsCellsNew1X,UconsCellsNew2X,UconsCellsNew3X,UconsCellsNewX);
@@ -373,11 +407,11 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 				Threads.@threads for p in 1:Threads.nthreads()
 					for i = cellsThreads[p,1]:cellsThreads[p,2]
 						
-						if testfields2d.densityCells[i] >= solControls.maxDensityConstrained
-							testfields2d.densityCells[i] = solControls.maxDensityConstrained;
+						if  UconsCellsNewX[i,1] >= solControls.maxDensityConstrained
+							UconsCellsNewX[i,1] = solControls.maxDensityConstrained;
 						end		
-						if testfields2d.densityCells[i] <= solControls.minDensityConstrained
-							testfields2d.densityCells[i] = solControls.minDensityConstrained;
+						if  UconsCellsNewX[i,1] <= solControls.minDensityConstrained
+							UconsCellsNewX[i,1] = solControls.minDensityConstrained;
 						end		
 
 					end
@@ -534,7 +568,7 @@ end
 ##@profview godunov2dthreads("2dmixinglayerUp_delta2.bson", numThreads, "2dMixingLayer_delta2", false); 
 
 
-godunov2dthreads("jet2d_v00tri",  "jet2d_v00tri", false); 
+godunov2dthreads("jet2d_v02tri",  "jet2d_v02tri", false); 
 
 
 
