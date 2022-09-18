@@ -386,11 +386,18 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 						
 						# calc rad = sqrt(x*x + yy)
 						r::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1]  + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2] ); 
+
 						if r >= 2.0
-							UconsCellsNewX[i,1] = 	UconsRef[1] - ksi(r,0.01,10.0,2.0,4.0)*( UconsCellsNewX[i,1] - UconsRef[1]) ;
-							UconsCellsNewX[i,2] = 	UconsRef[2] - ksi(r,0.01,10.0,2.0,4.0)*( UconsCellsNewX[i,2] - UconsRef[2]) ;
-							UconsCellsNewX[i,3] = 	UconsRef[3] - ksi(r,0.01,10.0,2.0,4.0)*( UconsCellsNewX[i,3] - UconsRef[3]) ;
-							UconsCellsNewX[i,4] = 	UconsRef[4] - ksi(r,0.01,10.0,2.0,4.0)*( UconsCellsNewX[i,4] - UconsRef[4]) ;
+							#UconsCellsNewX[i,1] = 	UconsRef[1] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,1] - UconsRef[1]) ;
+							#UconsCellsNewX[i,2] = 	UconsRef[2] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,2] - UconsRef[2]) ;
+							#UconsCellsNewX[i,3] = 	UconsRef[3] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,3] - UconsRef[3]) ;
+							#UconsCellsNewX[i,4] = 	UconsRef[4] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,4] - UconsRef[4]) ;
+
+							UconsCellsNewX[i,1] = 	ksi(r,0.1,20.0,2.0,4.0)* UconsCellsNewX[i,1] + (1.0-ksi(r,0.1,20.0,2.0,4.0))*UconsRef[1] ;
+							UconsCellsNewX[i,2] = 	ksi(r,0.1,20.0,2.0,4.0)* UconsCellsNewX[i,2] + (1.0-ksi(r,0.1,20.0,2.0,4.0))*UconsRef[2] ;
+							UconsCellsNewX[i,3] = 	ksi(r,0.1,20.0,2.0,4.0)* UconsCellsNewX[i,3] + (1.0-ksi(r,0.1,20.0,2.0,4.0))*UconsRef[3] ;
+							UconsCellsNewX[i,4] = 	ksi(r,0.1,20.0,2.0,4.0)* UconsCellsNewX[i,4] + (1.0-ksi(r,0.1,20.0,2.0,4.0))*UconsRef[4] ;
+
 						end
 					
 					end
