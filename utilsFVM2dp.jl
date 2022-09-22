@@ -312,7 +312,7 @@ end
 				testfields2d.UxNodes[J] 			= 0.0;
 				testfields2d.UyNodes[J] 			= 0.0;
 				testfields2d.pressureNodes[J] 		= 0.0;
-				viscfields2d.artViscosityNodes[J] 	= 0.0;
+				#viscfields2d.artViscosityNodes[J] 	= 0.0;
 				
 				node_solution[J,1] = 0.0;
 				node_solution[J,2] = 0.0;
@@ -337,7 +337,7 @@ end
 						testfields2d.UyNodes[J] 			+=  testfields2d.UyCells[neibCell]*wi;
 						testfields2d.pressureNodes[J] 		+=  testfields2d.pressureCells[neibCell]*wi;
 						
-						viscfields2d.artViscosityNodes[J] 	+= viscfields2d.artViscosityCells[neibCell]*wi;
+						#viscfields2d.artViscosityNodes[J] 	+= viscfields2d.artViscosityCells[neibCell]*wi;
 						
 						det += wi;
 					end
@@ -349,7 +349,7 @@ end
 					testfields2d.UxNodes[J] = testfields2d.UxNodes[J]/det; 
 					testfields2d.UyNodes[J] = testfields2d.UyNodes[J]/det; 
 					testfields2d.pressureNodes[J] = testfields2d.pressureNodes[J]/det; 
-					viscfields2d.artViscosityNodes[J] = viscfields2d.artViscosityNodes[J]/det;
+					#viscfields2d.artViscosityNodes[J] = viscfields2d.artViscosityNodes[J]/det;
 					
 					node_solution[J,1] = node_solution[J,1]/det; 
 					node_solution[J,2] = node_solution[J,2]/det; 
@@ -420,3 +420,62 @@ end
 
 
 end
+
+
+@everywhere @inline function cells2nodesSolutionReconstructionWithStencilsViscousGradients(beginNode::Int32, endNode::Int32,
+	testMesh::mesh2d_Int32, viscousFields2dX::viscousFields2d)
+
+			
+			
+@fastmath	for J= beginNode:endNode
+			
+				det::Float64 = 0.0;
+				
+				#nNeibCells = size(testMesh.cell_clusters,2);
+				
+				viscousFields2dX.cdUdxNodes[J] = 0.0;
+		  		viscousFields2dX.cdUdyNodes[J] = 0.0;
+		 		viscousFields2dX.cdVdxNodes[J] = 0.0;
+		  		viscousFields2dX.cdVdyNodes[J] = 0.0;
+				viscousFields2dX.cdEdxNodes[J] = 0.0;
+		  		viscousFields2dX.cdEdyNodes[J] = 0.0;
+				
+				
+				#for j = 1:nNeibCells
+				for j = 1:size(testMesh.cell_clusters,2);	
+				
+					neibCell::Int32 = testMesh.cell_clusters[J,j]; 
+					
+					if (neibCell !=0)
+						wi::Float64 = testMesh.node_stencils[J,j];
+						
+					
+						viscousFields2dX.cdUdxNodes[J] += viscousFields2dX.cdUdxCells[neibCell]*wi;
+						viscousFields2dX.cdUdyNodes[J] += viscousFields2dX.cdUdyCells[neibCell]*wi;
+						viscousFields2dX.cdVdxNodes[J] += viscousFields2dX.cdVdxCells[neibCell]*wi;
+						viscousFields2dX.cdVdyNodes[J] += viscousFields2dX.cdVdyCells[neibCell]*wi;
+						viscousFields2dX.cdEdxNodes[J] += viscousFields2dX.cdEdxCells[neibCell]*wi;
+						viscousFields2dX.cdEdyNodes[J] += viscousFields2dX.cdEdyCells[neibCell]*wi;
+												
+						det += wi;
+					end
+				end
+				
+				if (det!=0)
+				
+					viscousFields2dX.cdUdxNodes[J] = viscousFields2dX.cdUdxNodes[J]/det;
+		  			viscousFields2dX.cdUdyNodes[J] = viscousFields2dX.cdUdyNodes[J]/det;
+		 			viscousFields2dX.cdVdxNodes[J] = viscousFields2dX.cdVdxNodes[J]/det;
+		  			viscousFields2dX.cdVdyNodes[J] = viscousFields2dX.cdVdyNodes[J]/det;
+					viscousFields2dX.cdEdxNodes[J] = viscousFields2dX.cdEdxNodes[J]/det;
+		  			viscousFields2dX.cdEdyNodes[J] = viscousFields2dX.cdEdyNodes[J]/det;
+										
+				end
+				
+				
+			end ## for
+
+
+
+end
+

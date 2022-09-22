@@ -110,8 +110,8 @@ function createFields2dLoadPrevResults_shared(testMesh::mesh2d_Int32, thermo::TH
 	pressureNodes = SharedArray{Float64}(testMesh.nNodes); 
 
 	for i=1:testMesh.nCells
+		
 
-	
 		densityCells[i] 	=  solInst.densityCells[i];
 		UxCells[i] 			=  solInst.UxCells[i];
 		UyCells[i] 			=  solInst.UyCells[i]; 
@@ -152,7 +152,6 @@ end
 
 
 
-
 function createFields2d(testMesh::mesh2d_Int32, thermo::THERMOPHYSICS)
 
 
@@ -170,10 +169,44 @@ function createFields2d(testMesh::mesh2d_Int32, thermo::THERMOPHYSICS)
 
 	for i=1:testMesh.nCells
 
-		densityCells[i] 	= 1.1766;
-		UxCells[i] 			= 1232.6445;
-		UyCells[i] 			= 0.0; 
-		pressureCells[i] 	= 101325.0;
+		y::Float64 = testMesh.cell_mid_points[i,2];
+
+		delta::Float64 = 1.44e-4;
+			
+		U1::Float64 = 973.0;
+		U2::Float64 = 1634.0;
+		rho1::Float64 = 0.6025;
+		rho2::Float64 = 0.22226;
+		P1::Float64 = 94232.25;
+		P2::Float64 = 94232.25;
+		
+		aSound1::Float64 = sqrt(thermo.Gamma*P1/rho1);
+		aSound2::Float64 = sqrt(thermo.Gamma*P2/rho2);
+
+		a1::Float64 = 0.05;
+		a2::Float64 = 0.05;
+
+		lambda::Float64 = 30.0;
+		b::Float64 = 10.0;
+		phi1::Float64 = 0.0;
+		phi2::Float64 = pi*0.5;
+		Uc::Float64 = (U1*aSound1 + U2*aSound2)/(aSound1+aSound2);
+		T::Float64 = lambda/Uc;
+
+		yhat::Float64 = y - 60.0*delta*0.5;
+		
+		##scale::Float64 = 1.0;
+		##scale::Float64 = 0.01*Uc;
+		
+		densityCells[i]  = tanh(2.0*y/delta)*(rho1 - rho2)*0.5 + (rho1 + rho2)*0.5;
+		UxCells[i]  		= tanh(2.0*y/delta)*(U1-U2)*0.5 + (U1 + U2)*0.5;
+		UyCells[i]  		=  0.0; 			
+		pressureCells[i] 	=  tanh(2.0*y/delta)*(P1-P2)*0.5 + (P1+P2)*0.5;			 
+		
+		#densityCells[i] 	= 1.4;
+		#UxCells[i] 			= 300.0;
+		#UyCells[i] 			= 0.0; 
+		#pressureCells[i] 	= 10000.0;
 		
 		aSoundCells[i] = sqrt( thermo.Gamma * pressureCells[i]/densityCells[i] );
 		VMAXCells[i]  = sqrt( UxCells[i]*UxCells[i] + UyCells[i]*UyCells[i] ) + aSoundCells[i];

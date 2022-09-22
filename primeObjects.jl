@@ -2,14 +2,14 @@
 
 @everywhere mutable struct viscousFields2d
 
-	artViscosityCells::Array{Float64,1}
-	artViscosityNodes::Array{Float64,1}
+	viscosityCells::Array{Float64,1}
+	viscosityNodes::Array{Float64,1}
 	
-	dUdxCells::Array{Float64,1}
-	dUdyCells::Array{Float64,1}
+	#dUdxCells::Array{Float64,1}
+	#dUdyCells::Array{Float64,1}
 	
-	dVdxCells::Array{Float64,1}
-	dVdyCells::Array{Float64,1}
+	#dVdxCells::Array{Float64,1}
+	#dVdyCells::Array{Float64,1}
 	
 	laplasUCuCells::Array{Float64,1}
 	laplasUCvCells::Array{Float64,1}
@@ -17,11 +17,18 @@
 	
 	cdUdxCells::Array{Float64,1}
 	cdUdyCells::Array{Float64,1}
-	
 	cdVdxCells::Array{Float64,1}
 	cdVdyCells::Array{Float64,1}
 	cdEdxCells::Array{Float64,1}
 	cdEdyCells::Array{Float64,1}
+
+	cdUdxNodes::Array{Float64,1}
+	cdUdyNodes::Array{Float64,1}
+	cdVdxNodes::Array{Float64,1}
+	cdVdyNodes::Array{Float64,1}
+	cdEdxNodes::Array{Float64,1}
+	cdEdyNodes::Array{Float64,1}
+
 
 end
 

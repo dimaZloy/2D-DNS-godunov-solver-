@@ -40,13 +40,17 @@ include("calcDiffterm.jl");
 
 include("bcInviscidWall.jl"); 
 
-include("boundaryConditions_jet2d.jl");
+include("createViscousFields.jl")
+#include("boundaryConditions_jet2d.jl");
+#include("initfields_jet2d.jl");
+
 include("loadPrevResults.jl");
-include("initfields_jet2d.jl");
+
+include("boundaryConditions_ML2d.jl");
+include("initfields_ML2d.jl");
 
 
-#include("boundaryConditions_ML2d.jl");
-#include("initfields_ML2d.jl");
+
 ## initfields2d::distibuteCellsInThreadsSA()
 ## initfields2d::createFields2d_shared()
 
@@ -87,7 +91,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	useCuda = false;
 	debug = true;	
 	viscous = true;
-	damping = true;
+	damping = false;
 	flag2loadPreviousResults = false;
 
 
@@ -98,8 +102,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	nodesThreads = distibuteNodesInThreadsSA(Threads.nthreads(), testMesh.nNodes); ## partition mesh 
 	
 
-	#include("setupSolver_ML2d.jl"); #setup FVM and numerical schemes
-	include("setupSolver_jet2d.jl"); #setup FVM and numerical schemes
+	include("setupSolver_ML2d.jl"); #setup FVM and numerical schemes
+	#include("setupSolver_jet2d.jl"); #setup FVM and numerical schemes
 	
 	
 	## init primitive variables 
@@ -121,7 +125,7 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	
 	
 	if (flag2loadPreviousResults)
-		loadPrevResults(testMesh, thermo, "jet2d_v02tri.tmp", dynControls, testfields2d);
+		loadPrevResults(testMesh, thermo, "2mixinglayer_1200x480.old", dynControls, testfields2d);
 	end
 	
 	
@@ -342,8 +346,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			
 			if (viscous)
 			
-				calcArtificialViscositySA( cellsThreads, testMesh, thermo, testfields2d, viscfields2d);		
-				calcDiffTerm(cellsThreads, testMesh, testfields2d, viscfields2d, thermo, UconsNodesOldX, UConsDiffCellsX, UConsDiffNodesX);
+				#calcArtificialViscositySA( cellsThreads, testMesh, thermo, testfields2d, viscfields2d);		
+				calcDiffTerm(cellsThreads, nodesThreads, testMesh, testfields2d, viscfields2d, thermo, UconsNodesOldX, UConsDiffCellsX);
 			
 			end
 	
@@ -387,16 +391,16 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 						# calc rad = sqrt(x*x + yy)
 						r::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1]  + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2] ); 
 
-						if r >= 2.0
+						if r >= 2.5
 							#UconsCellsNewX[i,1] = 	UconsRef[1] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,1] - UconsRef[1]) ;
 							#UconsCellsNewX[i,2] = 	UconsRef[2] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,2] - UconsRef[2]) ;
 							#UconsCellsNewX[i,3] = 	UconsRef[3] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,3] - UconsRef[3]) ;
 							#UconsCellsNewX[i,4] = 	UconsRef[4] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,4] - UconsRef[4]) ;
 
-							UconsCellsNewX[i,1] = 	ksi(r,0.1,20.0,2.0,4.0)* UconsCellsNewX[i,1] + (1.0-ksi(r,0.1,20.0,2.0,4.0))*UconsRef[1] ;
-							UconsCellsNewX[i,2] = 	ksi(r,0.1,20.0,2.0,4.0)* UconsCellsNewX[i,2] + (1.0-ksi(r,0.1,20.0,2.0,4.0))*UconsRef[2] ;
-							UconsCellsNewX[i,3] = 	ksi(r,0.1,20.0,2.0,4.0)* UconsCellsNewX[i,3] + (1.0-ksi(r,0.1,20.0,2.0,4.0))*UconsRef[3] ;
-							UconsCellsNewX[i,4] = 	ksi(r,0.1,20.0,2.0,4.0)* UconsCellsNewX[i,4] + (1.0-ksi(r,0.1,20.0,2.0,4.0))*UconsRef[4] ;
+							UconsCellsNewX[i,1] = 	ksi(r,0.1,20.0,2.5,4.0)* UconsCellsNewX[i,1] + (1.0-ksi(r,0.1,20.0,2.5,4.0))*UconsRef[1] ;
+							UconsCellsNewX[i,2] = 	ksi(r,0.1,20.0,2.5,4.0)* UconsCellsNewX[i,2] + (1.0-ksi(r,0.1,20.0,2.5,4.0))*UconsRef[2] ;
+							UconsCellsNewX[i,3] = 	ksi(r,0.1,20.0,2.5,4.0)* UconsCellsNewX[i,3] + (1.0-ksi(r,0.1,20.0,2.5,4.0))*UconsRef[3] ;
+							UconsCellsNewX[i,4] = 	ksi(r,0.1,20.0,2.5,4.0)* UconsCellsNewX[i,4] + (1.0-ksi(r,0.1,20.0,2.5,4.0))*UconsRef[4] ;
 
 						end
 					
@@ -492,8 +496,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			
 
 	
-
-			if (flowTime>= solControls.stopTime || dynControls.isSolutionConverged == 1)
+			if (flowTime>= solControls.stopTime || dynControls.isSolutionConverged == 1) 
+			#if (flowTime>= solControls.stopTime)
 				dynControls.isRunSimulation = 0;
 		
 				if (dynControls.isSolutionConverged == true)
@@ -570,12 +574,9 @@ end
 
 
 
-
-##@time godunov2dthreads("2dmixinglayerUp_delta3.bson", numThreads, "2dMixingLayer_delta3", false); 
-##@profview godunov2dthreads("2dmixinglayerUp_delta2.bson", numThreads, "2dMixingLayer_delta2", false); 
-
-
-godunov2dthreads("jet2d_v02tri",  "jet2d_v02tri", false); 
+godunov2dthreads("2mixinglayer_1200x480", "2mixinglayer_1200x480", false); 
+#godunov2dthreads("2mixinglayer_1800x720q", "2mixinglayer_1800x720q", false); 
+#godunov2dthreads("2dmixinglayerUp_delta3",  "2dmixinglayerUp_delta3", false); 
 
 
 
