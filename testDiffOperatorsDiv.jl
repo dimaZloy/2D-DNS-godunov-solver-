@@ -99,8 +99,8 @@ function testCalcDivergence(meshname::String)
     # end
 
 
-    saveResults2VTK("zzzDiv1", testMesh, UDivNodes, "div theory" )
-    saveResults2VTK("zzzDiv2", testMesh, UDivApproxNodes, "div approx" )
+    saveResults2VTK(meshname*"DivTheory", testMesh, UDivNodes, "div theory" )
+    saveResults2VTK(meshname*"DivApprox", testMesh, UDivApproxNodes, "div approx" )
 
     #display(ULNodes.-ULApproxNodes)
 

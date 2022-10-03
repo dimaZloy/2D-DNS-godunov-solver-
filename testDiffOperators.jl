@@ -32,7 +32,7 @@ include("utilsFVM2dp.jl"); #FVM utililities
 ## utilsFVM2dp::phs2dcns2dcellsSA
 
 include("partMesh2d.jl");
-#include("calcGrad.jl");
+include("calcGrad.jl");
 include("calcDiv.jl");
 #include("calcArtViscosity.jl");
 
@@ -313,9 +313,13 @@ end
 
 
 
+#testCalcGradients("testQuadSquareDomain100x100")
+testCalcGradients("testTriSquareDomain100x100")
 
-#testCalcGradients("cyl2d_laminar_test")
-#testCalcDivergence("oblickShock2dl00F1n")
-#testCalcDivergence("cyl2d_laminar_test")
-testCalcLaplacian("cyl2d_laminar_test")
+#testCalcDivergence("testQuadSquareDomain100x100")
+#testCalcDivergence("testTriSquareDomain100x100")
+
+#testCalcLaplacian("testQuadSquareDomain100x100")
+#testCalcLaplacian("testTriSquareDomain100x100")
+
 

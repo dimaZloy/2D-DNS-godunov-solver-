@@ -148,11 +148,8 @@ function testCalcGradients(meshname::String)
     calcGradienMagUTest(NCells, UGradX, UGradY, UGradMag);
 
 
-    # Threads.@threads for p in 1:Threads.nthreads()
-
-    #     for i = cellsThreads[p,1]:cellsThreads[p,2]
-    #         nodesGradientReconstructionFastPerThread22(cellsThreads[p,1],cellsThreads[p,2], testMesh, UNodes, UGradXApprox, UGradYApprox)
-    #     end
+    # Threads.@threads for p in 1:Threads.nthreads()    
+    #      nodesGradientReconstructionFastPerThread22(cellsThreads[p,1],cellsThreads[p,2], testMesh, UNodes, UGradXApprox, UGradYApprox)
     # end
 
     calcScalarFieldGradient(cellsThreads,testMesh, UNodes, UGradXApprox, UGradYApprox);
@@ -172,7 +169,10 @@ function testCalcGradients(meshname::String)
     cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UGradXApprox, UGradXApproxNodes);
     cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UGradYApprox, UGradYApproxNodes);
     cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UGradMagApprox, UGradMagApproxNodes);
-    
+
+    saveResults2VTK(meshname*"GradTheory", testMesh, UGradMagNodes, "grad theory" )
+    saveResults2VTK(meshname*"GradApprox", testMesh, UGradMagApproxNodes, "grad approx" )
+
 
     figure(1)
     clf()

@@ -7,6 +7,59 @@ end
     return 4.0*x*x + 4.0*y*y;
 end
 
+
+function calcScalarFieldLaplacian(cellsThreads::Array{Int32,2}, test_mesh::mesh2d_Int32, 
+    scalarFieldCells::Vector{Float64}, scalarFieldNodes::Vector{Float64},  LaplaceCell::Vector{Float64})
+  
+    ## scalarField in Mesh Nodes !!!!
+  
+    Threads.@threads for p in 1:Threads.nthreads()
+           
+
+                phiFaceX = zeros(Float64,4);
+                phiFaceY = zeros(Float64,4);
+                
+                phiLeft = zeros(Float64,4);
+                phiRight = zeros(Float64,4);
+                
+                side = zeros(Float64,4);
+                nx = zeros(Float64,4);
+                ny = zeros(Float64,4);
+
+                #phiCell::Float64 = 0.0;
+
+                
+            
+                for C =  cellsThreads[p,1]:cellsThreads[p,2]
+                
+                    phi0 = scalarFieldCells[C];
+                     
+
+                    if (test_mesh.mesh_connectivity[C,3] == 4) ## if number of node cells == 4 
+                        
+                        phi1 = scalarFieldNodes[ test_mesh.mesh_connectivity[C,4] ];
+                        phi2 = scalarFieldNodes[ test_mesh.mesh_connectivity[C,5] ];
+                        phi3 = scalarFieldNodes[ test_mesh.mesh_connectivity[C,6] ];
+                        phi4 = scalarFieldNodes[ test_mesh.mesh_connectivity[C,7] ];
+
+                        LaplaceCell[C] = 3.0/4.0*(phi1 + phi2 + phi3 + phi4 - 4.0*phi0)/test_mesh.HX[C]/test_mesh.HX[C];
+                        ## works fine for quad grids!!!!
+                    else
+                        phi1 = scalarFieldNodes[ test_mesh.mesh_connectivity[C,4] ];
+                        phi2 = scalarFieldNodes[ test_mesh.mesh_connectivity[C,5] ];
+                        phi3 = scalarFieldNodes[ test_mesh.mesh_connectivity[C,6] ];
+                        LaplaceCell[C] = (phi1 + phi2 + phi3  - 3.0*phi0)/sqrt(test_mesh.cell_areas[C]);
+                        ## doesn't work at all !!!!
+                    end
+            
+                end ## end global loop for cells
+  
+            end ## threads
+  
+  end
+
+
+
 function testCalcLaplacian(meshname::String)
 
     testMesh = readMesh2dHDF5(meshname);
@@ -50,13 +103,13 @@ function testCalcLaplacian(meshname::String)
     
     
    
-    calcScalarFieldGradient(cellsThreads, testMesh, UNodes, UGradXApprox, UGradYApprox)
-    
-    cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UGradXApprox, UGradXApproxNodes);
-    cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UGradYApprox, UGradYApproxNodes);
-        
-    #nodesDivergenceReconstructionFastSA44(cellsThreads, testMesh, U, UGradXApproxNodes, UGradYApproxNodes, ULapApprox);
-    nodesDivergenceReconstructionFastSA22(cellsThreads, testMesh, UGradXApproxNodes, UGradYApproxNodes, ULapApprox);
+    #calcScalarFieldGradient(cellsThreads, testMesh, UNodes, UGradXApprox, UGradYApprox)
+    #cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UGradXApprox, UGradXApproxNodes);
+    #cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UGradYApprox, UGradYApproxNodes);
+    #nodesDivergenceReconstructionFastSA22(cellsThreads, testMesh, UGradXApproxNodes, UGradYApproxNodes, ULapApprox);
+
+
+    calcScalarFieldLaplacian(cellsThreads, testMesh, U, UNodes, ULapApprox); 
 
     cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, ULapApprox, ULapApproxNodes);
 
@@ -69,8 +122,8 @@ function testCalcLaplacian(meshname::String)
     nMin = findmin(ULapApproxNodes);
 
 
-    saveResults2VTK("zzzLap1", testMesh, ULapNodes, "Lap theory" )
-    saveResults2VTK("zzzLap2", testMesh, ULapApproxNodes, "Lap approx" )
+    saveResults2VTK(meshname*"LapTheory", testMesh, ULapNodes, "Lap theory" )
+    saveResults2VTK(meshname*"LapApprox", testMesh, ULapApproxNodes, "Lap approx" )
 
     display(aMax)
     display(aMin)
