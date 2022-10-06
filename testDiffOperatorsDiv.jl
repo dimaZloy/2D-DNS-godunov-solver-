@@ -62,42 +62,21 @@ function testCalcDivergence(meshname::String)
     cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UDiv, UDivNodes);
     
 
-    #calcGradients(cellsThreads, testMesh, Ux, UxGradXApprox, UxGradYApprox);
-    #calcGradients(cellsThreads, testMesh, Uy, UyGradXApprox, UyGradYApprox);
 
-    #calcScalarFieldGradient22(cellsThreads, testMesh, UxNodes, UxGradXApprox, UxGradYApprox);
-    #calcScalarFieldGradient22(cellsThreads, testMesh, UyNodes, UyGradXApprox, UyGradYApprox);
-    
-    # display(UyNodes)
-     #display(UxGradXApprox)
-     #display(UxGradYApprox)
-    
-    #cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UxGradXApprox, UxGradXApproxNodes);
-    #cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UyGradYApprox, UyGradYApproxNodes);
-    
 
-    nodesDivergenceReconstructionFastSA22(cellsThreads, testMesh,  UxNodes, UyNodes,  UDivApprox);    
+     calcScalarFieldGreenGaussNodesBasedGradient(cellsThreads, testMesh, Ux, UxNodes, UyGradXApprox, UyGradYApprox);
+     calcScalarFieldGreenGaussNodesBasedGradient(cellsThreads, testMesh, Uy, UyNodes, UxGradXApprox, UxGradYApprox);
     
-
-      #Threads.@threads for p in 1:Threads.nthreads()
-          #nodesDivergenceReconstructionFastSA22(cellsThreads[p,1],cellsThreads[p,2], testMesh,  UxGradXApproxNodes, UxGradYApproxNodes, UDivApprox);    
-
-    # #    # nodesDivergenceReconstructionFastSA22(cellsThreads[p,1],cellsThreads[p,2], testMesh,  UyGradYApproxNodes, UyGradYApproxNodes, UDivYApprox);    
-
-       #  
-         #nodesDivergenceReconstructionFastSA22(nodesThreads[p,1],nodesThreads[p,2], testMesh,  UxNodes, UyNodes,  UDivApprox);    
-      #end
+     cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UxGradXApprox, UxGradXApproxNodes);
+     cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UyGradYApprox, UyGradYApproxNodes);
     
-    #   for i = 1:NCells
-    #         UDivApprox[i] = (UxGradXApprox[i] + UyGradYApprox[i] );
-    #   end
+    
+       for i = 1:NCells
+             UDivApprox[i] = (UxGradXApprox[i] + UyGradYApprox[i] );
+       end
+
 
     cells2nodesSolutionReconstructionWithStencilsVector( nodesThreads, testMesh, UDivApprox, UDivApproxNodes);
-
-    # for i = 1:NNodes
-    #     UDivApproxNodes[i] = (UxGradXApproxNodes[i] + UyGradYApproxNodes[i] );
-    # end
-
 
     saveResults2VTK(meshname*"DivTheory", testMesh, UDivNodes, "div theory" )
     saveResults2VTK(meshname*"DivApprox", testMesh, UDivApproxNodes, "div approx" )
@@ -173,7 +152,7 @@ function testCalcDivergence(meshname::String)
 	ylabel("y");
 	title("dUydy approx");
 
-     figure(4)
+     figure(3)
      clf()
       subplot(1,2,1)
       tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, UDivNodes, vmin = -3.0, vmax=3.0);	

@@ -39,9 +39,32 @@ end
 
 end 
 
-function calcScalarFieldGreenGaussCellBasedGradient(cellsThreads::Array{Int32,2}, testMesh::mesh2d_Int32, 
+
+@inline function  getSymmetricalPointAboutCellEdge(
+        px::Float64,py::Float64, 
+        x0::Float64, y0::Float64, 
+        x1::Float64, y1::Float64, 
+        sp::Vector{Float64})
+
+    dx::Float64 = x1-x0;
+    dy::Float64 = y1-y0;
+    a::Float64 = (dx*dx - dy*dy)/(dx*dx + dy*dy);
+    b::Float64 = 2.0*dx*dy/(dx*dx + dy*dy);
+    sp[1] = a*(px-x0) + b*(py-y0) + x0;
+    sp[2] = b*(px-x0) - a*(py-y0) + y0;
+
+end
+
+function calcScalarFieldGreenGaussNodesBasedGradient(cellsThreads::Array{Int32,2}, testMesh::mesh2d_Int32, 
     scalarFieldCells::Vector{Float64}, scalarFieldNodes::Vector{Float64}, gradX::Vector{Float64}, gradY::Vector{Float64})
   
+    ## calculate X and Y gradients of scalarField in cell-centers
+    ## use Green-Gauss noded-based method for interior cells and
+    ## unweighted LSQ method for boundary cells (test scalar function (BC) shall be provided)
+    ## based on the paper by 
+    ## Anderson, W.K. and Bonhaus, D.L, 
+    ## An implicit upwind algorithm for computing turbulent flows on unstructured grids,  
+    ## Comput Fluids, 23(1), 1-21 (1994)
   
     Threads.@threads for p in 1:Threads.nthreads()
            
@@ -56,7 +79,7 @@ function calcScalarFieldGreenGaussCellBasedGradient(cellsThreads::Array{Int32,2}
                 nx = zeros(Float64,4);
                 ny = zeros(Float64,4);
                 
-            
+                ## looping for interior cells
                 for C =  cellsThreads[p,1]:cellsThreads[p,2]
                 
                     
@@ -105,26 +128,7 @@ function calcScalarFieldGreenGaussCellBasedGradient(cellsThreads::Array{Int32,2}
                     
                        
                     end
-                    
-                    # eps = 1.0e-12;
-                    # if phiLeft[1] < eps && phiRight[1] < eps
-
-                    #     phiLeft[1] =  phiRight[1] = scalarFieldCells[C];
-
-                    # elseif phiLeft[2] < eps && phiRight[2] < eps
-
-                    #     phiLeft[2] =  phiRight[2] = scalarFieldCells[C];
-
-                    # elseif phiLeft[3] < eps && phiRight[3] < eps
-
-                    #     phiLeft[3] =  phiRight[3] = scalarFieldCells[C];
-
-                    # elseif phiLeft[4] < eps && phiRight[4] < eps && testMesh.mesh_connectivity[C,3] == 4
-
-                    #     phiLeft[4] =  phiRight[4] = scalarFieldCells[C];
-                    # end
-
-
+                
                     
                     phiFaceX[1] = 0.5*(phiLeft[1] + phiRight[1])*-ny[1]*side[1];		
                     phiFaceY[1] = 0.5*(phiLeft[1] + phiRight[1])*-nx[1]*side[1];
@@ -147,95 +151,169 @@ function calcScalarFieldGreenGaussCellBasedGradient(cellsThreads::Array{Int32,2}
   
             end ## threads
 
+            ## looping for boundary cells 
+
             for B = 1:length(testMesh.bc_indexes)
                 BCell = testMesh.bc_data[B,1];
                 gradX[BCell] = gradY[BCell] = 0.0;    
+                phi0 = scalarFieldCells[BCell];
+                x0 = testMesh.cell_mid_points[BCell,1];
+                y0 = testMesh.cell_mid_points[BCell,2];   
+                xI = zeros(Float64,4);
+                yI = zeros(Float64,4);
+                phiI = zeros(Float64,4);
+                #indexI = ones(Float64,4);
+                WiX = zeros(Float64,4);
+                WiY = zeros(Float64,4);
+
+                v = 1;
+                for neibI = 1:4
+
+                    cellI = testMesh.cell_stiffness[BCell,neibI];    
+
+                    if cellI >=1 && cellI <= testMesh.nCells ## interior cells
+                        xI[neibI] =  testMesh.cell_mid_points[cellI,1];  
+                        yI[neibI] =  testMesh.cell_mid_points[cellI,2];  
+                        phiI[neibI] = scalarFieldCells[cellI];
+                        #indexI[neibI] = 1.0;
+                    elseif cellI < 0 ## boundary cells
+                        ## apply BCs here 
+                        
+                        # node1 = testMesh.cells2nodes[BCell,v]
+                        # node2 = testMesh.cells2nodes[BCell,v+1]
+                        # sp = zeros(Float64,2);
+                        # getSymmetricalPointAboutCellEdge(x0,y0, testMesh.xNodes[node1], testMesh.yNodes[node1], testMesh.xNodes[node2], testMesh.yNodes[node2], sp);
+                        # xI[neibI] = sp[1];
+                        # yI[neibI] = sp[2];
+                        # phiI[neibI] =  UGtest(xI[neibI],yI[neibI]);
+
+                        #xI[neibI] = x0;
+                        #yI[neibI] = y0;
+                        #phiI[neibI] =  phi0;
+
+
+                       
+                    end
+                    v += 2;
+
+                end
+
+                r11 = sqrt( (xI[1]-x0)*(xI[1]-x0) + (xI[2]-x0)*(xI[2]-x0) + (xI[3]-x0)*(xI[3]-x0) + (xI[4]-x0)*(xI[4]-x0)  ) ;
+                r12 = 1.0/r11*( (xI[1]-x0)*(yI[1]-y0) + (xI[2]-x0)*(yI[2]-y0) + (xI[3]-x0)*(yI[3]-y0) + (xI[4]-x0)*(yI[4]-y0) ) ;
+                r22 = sqrt( ((yI[1]-y0) - (xI[1]-x0)*r12/r11)^2 + ((yI[2]-y0) - (xI[2]-x0)*r12/r11)^2 + ((yI[3]-y0) - (xI[3]-x0)*r12/r11)^2 + ((yI[4]-y0) - (xI[4]-x0)*r12/r11)^2 ) ;
+                
+                # WiY[1] = 1.0/r22/r22*( (yI[1]-y0) - (xI[1]-x0)*r12/r11)*indexI[1] ;  
+                # WiY[2] = 1.0/r22/r22*( (yI[2]-y0) - (xI[2]-x0)*r12/r11)*indexI[2] ;  
+                # WiY[3] = 1.0/r22/r22*( (yI[3]-y0) - (xI[3]-x0)*r12/r11)*indexI[3] ;  
+                # WiY[4] = 1.0/r22/r22*( (yI[4]-y0) - (xI[4]-x0)*r12/r11)*indexI[4] ;  
+
+                # WiX[1] = (1.0/r11/r11*(xI[1]-x0) - r12/r11/r22/r22*( (yI[1] -y0) - (xI[1]-x0)*r12/r11 ))*indexI[1];
+                # WiX[2] = (1.0/r11/r11*(xI[2]-x0) - r12/r11/r22/r22*( (yI[2] -y0) - (xI[2]-x0)*r12/r11 ))*indexI[2];
+                # WiX[3] = (1.0/r11/r11*(xI[3]-x0) - r12/r11/r22/r22*( (yI[3] -y0) - (xI[3]-x0)*r12/r11 ))*indexI[3];
+                # WiX[4] = (1.0/r11/r11*(xI[4]-x0) - r12/r11/r22/r22*( (yI[4] -y0) - (xI[4]-x0)*r12/r11 ))*indexI[4];
+
+                WiY[1] = 1.0/r22/r22*( (yI[1]-y0) - (xI[1]-x0)*r12/r11) ;  
+                WiY[2] = 1.0/r22/r22*( (yI[2]-y0) - (xI[2]-x0)*r12/r11) ;  
+                WiY[3] = 1.0/r22/r22*( (yI[3]-y0) - (xI[3]-x0)*r12/r11) ;  
+                WiY[4] = 1.0/r22/r22*( (yI[4]-y0) - (xI[4]-x0)*r12/r11) ;  
+
+                WiX[1] = (1.0/r11/r11*(xI[1]-x0) - r12/r11/r22/r22*( (yI[1] -y0) - (xI[1]-x0)*r12/r11 )) ;
+                WiX[2] = (1.0/r11/r11*(xI[2]-x0) - r12/r11/r22/r22*( (yI[2] -y0) - (xI[2]-x0)*r12/r11 )) ;
+                WiX[3] = (1.0/r11/r11*(xI[3]-x0) - r12/r11/r22/r22*( (yI[3] -y0) - (xI[3]-x0)*r12/r11 )) ;
+                WiX[4] = (1.0/r11/r11*(xI[4]-x0) - r12/r11/r22/r22*( (yI[4] -y0) - (xI[4]-x0)*r12/r11 )) ;
+
+
+
+                gradX[BCell] = (WiX[1]*(phiI[1]-phi0) + WiX[2]*(phiI[2]-phi0) + WiX[3]*(phiI[3]-phi0) + WiX[4]*(phiI[4]-phi0) )*testMesh.cell_areas[BCell] ;
+                gradY[BCell] = (WiY[1]*(phiI[1]-phi0) + WiY[2]*(phiI[2]-phi0) + WiY[3]*(phiI[3]-phi0) + WiY[4]*(phiI[4]-phi0) )*testMesh.cell_areas[BCell] ; 
+               
+
             end
   
   end
 
 
 
-
-function calcScalarFieldGradient(cellsThreads::Array{Int32,2}, testMesh::mesh2d_Int32, 
-    scalarField::Array{Float64,1}, gradX::Array{Float64,1}, gradY::Array{Float64,1})
+# DO NOT USE!!!
+# function calcScalarFieldGradient(cellsThreads::Array{Int32,2}, testMesh::mesh2d_Int32, 
+#     scalarField::Array{Float64,1}, gradX::Array{Float64,1}, gradY::Array{Float64,1})
   
-    ## scalarField in Mesh Nodes !!!!
+#     ## scalarField in Mesh Nodes !!!!
   
-    Threads.@threads for p in 1:Threads.nthreads()
+#     Threads.@threads for p in 1:Threads.nthreads()
            
 
-                phiFaceX = zeros(Float64,4);
-                phiFaceY = zeros(Float64,4);
+#                 phiFaceX = zeros(Float64,4);
+#                 phiFaceY = zeros(Float64,4);
                 
-                phiLeft = zeros(Float64,4);
-                phiRight = zeros(Float64,4);
+#                 phiLeft = zeros(Float64,4);
+#                 phiRight = zeros(Float64,4);
                 
-                side = zeros(Float64,4);
-                nx = zeros(Float64,4);
-                ny = zeros(Float64,4);
+#                 side = zeros(Float64,4);
+#                 nx = zeros(Float64,4);
+#                 ny = zeros(Float64,4);
                 
             
-                for C =  cellsThreads[p,1]:cellsThreads[p,2]
+#                 for C =  cellsThreads[p,1]:cellsThreads[p,2]
                 
                     
-                    side[1] = testMesh.cell_edges_length[C,1];
-                    side[2] = testMesh.cell_edges_length[C,2];
-                    side[3] = testMesh.cell_edges_length[C,3];
+#                     side[1] = testMesh.cell_edges_length[C,1];
+#                     side[2] = testMesh.cell_edges_length[C,2];
+#                     side[3] = testMesh.cell_edges_length[C,3];
                     
-                    nx[1] = testMesh.cell_edges_Nx[C,1];
-                    nx[2] = testMesh.cell_edges_Nx[C,2];
-                    nx[3] = testMesh.cell_edges_Nx[C,3];
+#                     nx[1] = testMesh.cell_edges_Nx[C,1];
+#                     nx[2] = testMesh.cell_edges_Nx[C,2];
+#                     nx[3] = testMesh.cell_edges_Nx[C,3];
                     
-                    ny[1] = testMesh.cell_edges_Ny[C,1];
-                    ny[2] = testMesh.cell_edges_Ny[C,2];
-                    ny[3] = testMesh.cell_edges_Ny[C,3];
-                    
-            
-                    phiLeft[1] =  scalarField[ testMesh.cells2nodes[C,1] ];
-                    phiRight[1] = scalarField[ testMesh.cells2nodes[C,2] ];
-            
-                    phiLeft[2] =  scalarField[ testMesh.cells2nodes[C,3] ];
-                    phiRight[2] = scalarField[ testMesh.cells2nodes[C,4] ];
-            
-                    phiLeft[3] =  scalarField[ testMesh.cells2nodes[C,5] ];
-                    phiRight[3] = scalarField[ testMesh.cells2nodes[C,6] ];
+#                     ny[1] = testMesh.cell_edges_Ny[C,1];
+#                     ny[2] = testMesh.cell_edges_Ny[C,2];
+#                     ny[3] = testMesh.cell_edges_Ny[C,3];
                     
             
-                    if (testMesh.mesh_connectivity[C,3] == 4) ## if number of node cells == 4 
+#                     phiLeft[1] =  scalarField[ testMesh.cells2nodes[C,1] ];
+#                     phiRight[1] = scalarField[ testMesh.cells2nodes[C,2] ];
+            
+#                     phiLeft[2] =  scalarField[ testMesh.cells2nodes[C,3] ];
+#                     phiRight[2] = scalarField[ testMesh.cells2nodes[C,4] ];
+            
+#                     phiLeft[3] =  scalarField[ testMesh.cells2nodes[C,5] ];
+#                     phiRight[3] = scalarField[ testMesh.cells2nodes[C,6] ];
                     
-                        side[4] = testMesh.cell_edges_length[C,4];
-                        nx[4] = testMesh.cell_edges_Nx[C,4];
-                        ny[4] = testMesh.cell_edges_Ny[C,4];
+            
+#                     if (testMesh.mesh_connectivity[C,3] == 4) ## if number of node cells == 4 
+                    
+#                         side[4] = testMesh.cell_edges_length[C,4];
+#                         nx[4] = testMesh.cell_edges_Nx[C,4];
+#                         ny[4] = testMesh.cell_edges_Ny[C,4];
                 
-                        phiLeft[4] =  scalarField[ testMesh.cells2nodes[C,7] ];
-                        phiRight[4] = scalarField[ testMesh.cells2nodes[C,8] ];
+#                         phiLeft[4] =  scalarField[ testMesh.cells2nodes[C,7] ];
+#                         phiRight[4] = scalarField[ testMesh.cells2nodes[C,8] ];
                     
-                    end
+#                     end
                     
                     
-                    phiFaceX[1] = 0.5*(phiLeft[1] + phiRight[1])*-nx[1]*side[1];		
-                    phiFaceY[1] = 0.5*(phiLeft[1] + phiRight[1])*-ny[1]*side[1];
+#                     phiFaceX[1] = 0.5*(phiLeft[1] + phiRight[1])*-nx[1]*side[1];		
+#                     phiFaceY[1] = 0.5*(phiLeft[1] + phiRight[1])*-ny[1]*side[1];
             
-                    phiFaceX[2] = 0.5*(phiLeft[2] + phiRight[2])*-nx[2]*side[2];		
-                    phiFaceY[2] = 0.5*(phiLeft[2] + phiRight[2])*-ny[2]*side[2];
+#                     phiFaceX[2] = 0.5*(phiLeft[2] + phiRight[2])*-nx[2]*side[2];		
+#                     phiFaceY[2] = 0.5*(phiLeft[2] + phiRight[2])*-ny[2]*side[2];
                     
-                    phiFaceX[3] = 0.5*(phiLeft[3] + phiRight[3])*-nx[3]*side[3];		
-                    phiFaceY[3] = 0.5*(phiLeft[3] + phiRight[3])*-ny[3]*side[3];
+#                     phiFaceX[3] = 0.5*(phiLeft[3] + phiRight[3])*-nx[3]*side[3];		
+#                     phiFaceY[3] = 0.5*(phiLeft[3] + phiRight[3])*-ny[3]*side[3];
                     
-                    phiFaceX[4] = 0.5*(phiLeft[4] + phiRight[4])*-nx[4]*side[4];		
-                    phiFaceY[4] = 0.5*(phiLeft[4] + phiRight[4])*-ny[4]*side[4];
+#                     phiFaceX[4] = 0.5*(phiLeft[4] + phiRight[4])*-nx[4]*side[4];		
+#                     phiFaceY[4] = 0.5*(phiLeft[4] + phiRight[4])*-ny[4]*side[4];
             
-                    gradX[C] =  (phiFaceX[1] + phiFaceX[2] + phiFaceX[3] + phiFaceX[4]) / testMesh.cell_areas[C];
-                    gradY[C] =  (phiFaceY[1] + phiFaceY[2] + phiFaceY[3] + phiFaceY[4]) / testMesh.cell_areas[C];
+#                     gradX[C] =  (phiFaceX[1] + phiFaceX[2] + phiFaceX[3] + phiFaceX[4]) / testMesh.cell_areas[C];
+#                     gradY[C] =  (phiFaceY[1] + phiFaceY[2] + phiFaceY[3] + phiFaceY[4]) / testMesh.cell_areas[C];
                     
         
             
-                end ## end global loop for cells
+#                 end ## end global loop for cells
   
-            end ## threads
+#             end ## threads
   
-  end
+#   end
 
 
 
@@ -287,10 +365,10 @@ function testCalcGradients(meshname::String)
     #      nodesGradientReconstructionFastPerThread22(cellsThreads[p,1],cellsThreads[p,2], testMesh, UNodes, UGradXApprox, UGradYApprox)
     # end
 
-    calcScalarFieldGradient(cellsThreads,testMesh, UNodes, UGradXApprox, UGradYApprox);
+    #calcScalarFieldGradient(cellsThreads,testMesh, UNodes, UGradXApprox, UGradYApprox);
 
-    calcScalarFieldGreenGaussCellBasedGradient(cellsThreads, testMesh, U, UNodes, UGradXApprox, UGradYApprox);
-
+    calcScalarFieldGreenGaussNodesBasedGradient(cellsThreads, testMesh, U, UNodes, UGradXApprox, UGradYApprox);
+    
 
     for i = 1: NCells
         UGradMagApprox[i] =     sqrt( UGradXApprox[i]*UGradXApprox[i] +  UGradYApprox[i]*UGradYApprox[i] )
