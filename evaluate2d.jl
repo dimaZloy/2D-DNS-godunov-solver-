@@ -49,43 +49,99 @@ end
 
 
 
-
-@everywhere function updateVariablesSA(
-	beginCell::Int32,endCell::Int32,Gamma::Float64,
+function updateVariablesSA(
+	 cellsThreadsX::Array{Int32,2},
+	 Gamma::Float64,
 	 UconsCellsNew::Array{Float64,2},
 	 UconsCellsOld::Array{Float64,2},
 	 Delta::Array{Float64,2},
-	 testfields2d::fields2d)
-	
-	for i=beginCell:endCell
-	
-		testfields2d.densityCells[i] = UconsCellsNew[i,1];
-		testfields2d.UxCells[i] 	  = UconsCellsNew[i,2]/UconsCellsNew[i,1];
-		testfields2d.UyCells[i] 	  = UconsCellsNew[i,3]/UconsCellsNew[i,1];
-		testfields2d.pressureCells[i] = (Gamma-1.0)*( UconsCellsNew[i,4] - 0.5*( UconsCellsNew[i,2]*UconsCellsNew[i,2] + UconsCellsNew[i,3]*UconsCellsNew[i,3] )/UconsCellsNew[i,1] );
+	 testfields2d::fields2d, 
+	 solControls::CONTROLS,
+	 dynControls::DYNAMICCONTROLS)
 
-		testfields2d.aSoundCells[i] = sqrt( Gamma * testfields2d.pressureCells[i]/testfields2d.densityCells[i] );
-		testfields2d.VMAXCells[i]  = sqrt( testfields2d.UxCells[i]*testfields2d.UxCells[i] + testfields2d.UyCells[i]*testfields2d.UyCells[i] ) + testfields2d.aSoundCells[i];
-		
-		Delta[i,1] = UconsCellsNew[i,1] - UconsCellsOld[i,1];
-		Delta[i,2] = UconsCellsNew[i,2] - UconsCellsOld[i,2];
-		Delta[i,3] = UconsCellsNew[i,3] - UconsCellsOld[i,3];
-		Delta[i,4] = UconsCellsNew[i,4] - UconsCellsOld[i,4];
 
-		
-		UconsCellsOld[i,1] = UconsCellsNew[i,1];
-		UconsCellsOld[i,2] = UconsCellsNew[i,2];
-		UconsCellsOld[i,3] = UconsCellsNew[i,3];
-		UconsCellsOld[i,4] = UconsCellsNew[i,4];
-		
-	end
+	  if (solControls.densityConstrained==1)
+
+	 	Threads.@threads for p in 1:Threads.nthreads()
+	 		for i = cellsThreadsX[p,1]:cellsThreadsX[p,2]
+				
+	 			if  UconsCellsNewX[i,1] >= solControls.maxDensityConstrained
+	 				UconsCellsNewX[i,1] = solControls.maxDensityConstrained;
+	 			end		
+	 			if  UconsCellsNewX[i,1] <= solControls.minDensityConstrained
+	 				UconsCellsNewX[i,1] = solControls.minDensityConstrained;
+	 			end		
+
+	 		end
+	 	end
+	 end
+
+	 (dynControls.rhoMax,id) = findmax(testfields2d.densityCells);
+	 (dynControls.rhoMin,id) = findmin(testfields2d.densityCells);
+
+
+	 Threads.@threads for p in 1:Threads.nthreads()	
 	
+			for i = cellsThreadsX[p,1]: cellsThreadsX[p,2]
+
+				testfields2d.densityCells[i] = UconsCellsNew[i,1];
+				testfields2d.UxCells[i] 	  = UconsCellsNew[i,2]/UconsCellsNew[i,1];
+				testfields2d.UyCells[i] 	  = UconsCellsNew[i,3]/UconsCellsNew[i,1];
+				testfields2d.pressureCells[i] = (Gamma-1.0)*( UconsCellsNew[i,4] - 0.5*( UconsCellsNew[i,2]*UconsCellsNew[i,2] + UconsCellsNew[i,3]*UconsCellsNew[i,3] )/UconsCellsNew[i,1] );
+
+				testfields2d.aSoundCells[i] = sqrt( Gamma * testfields2d.pressureCells[i]/testfields2d.densityCells[i] );
+				testfields2d.VMAXCells[i]  = sqrt( testfields2d.UxCells[i]*testfields2d.UxCells[i] + testfields2d.UyCells[i]*testfields2d.UyCells[i] ) + testfields2d.aSoundCells[i];
+				
+				Delta[i,1] = UconsCellsNew[i,1] - UconsCellsOld[i,1];
+				Delta[i,2] = UconsCellsNew[i,2] - UconsCellsOld[i,2];
+				Delta[i,3] = UconsCellsNew[i,3] - UconsCellsOld[i,3];
+				Delta[i,4] = UconsCellsNew[i,4] - UconsCellsOld[i,4];
+
+				
+				UconsCellsOld[i,1] = UconsCellsNew[i,1];
+				UconsCellsOld[i,2] = UconsCellsNew[i,2];
+				UconsCellsOld[i,3] = UconsCellsNew[i,3];
+				UconsCellsOld[i,4] = UconsCellsNew[i,4];
+	
+			end # end i-cell
+
+		end ## end p-thread
+
  end
 
 
 
+# @everywhere function updateVariablesSA(
+# 	beginCell::Int32,endCell::Int32,Gamma::Float64,
+# 	 UconsCellsNew::Array{Float64,2},
+# 	 UconsCellsOld::Array{Float64,2},
+# 	 Delta::Array{Float64,2},
+# 	 testfields2d::fields2d)
+	
+# 	for i=beginCell:endCell
+	
+# 		testfields2d.densityCells[i] = UconsCellsNew[i,1];
+# 		testfields2d.UxCells[i] 	  = UconsCellsNew[i,2]/UconsCellsNew[i,1];
+# 		testfields2d.UyCells[i] 	  = UconsCellsNew[i,3]/UconsCellsNew[i,1];
+# 		testfields2d.pressureCells[i] = (Gamma-1.0)*( UconsCellsNew[i,4] - 0.5*( UconsCellsNew[i,2]*UconsCellsNew[i,2] + UconsCellsNew[i,3]*UconsCellsNew[i,3] )/UconsCellsNew[i,1] );
 
+# 		testfields2d.aSoundCells[i] = sqrt( Gamma * testfields2d.pressureCells[i]/testfields2d.densityCells[i] );
+# 		testfields2d.VMAXCells[i]  = sqrt( testfields2d.UxCells[i]*testfields2d.UxCells[i] + testfields2d.UyCells[i]*testfields2d.UyCells[i] ) + testfields2d.aSoundCells[i];
+		
+# 		Delta[i,1] = UconsCellsNew[i,1] - UconsCellsOld[i,1];
+# 		Delta[i,2] = UconsCellsNew[i,2] - UconsCellsOld[i,2];
+# 		Delta[i,3] = UconsCellsNew[i,3] - UconsCellsOld[i,3];
+# 		Delta[i,4] = UconsCellsNew[i,4] - UconsCellsOld[i,4];
 
+		
+# 		UconsCellsOld[i,1] = UconsCellsNew[i,1];
+# 		UconsCellsOld[i,2] = UconsCellsNew[i,2];
+# 		UconsCellsOld[i,3] = UconsCellsNew[i,3];
+# 		UconsCellsOld[i,4] = UconsCellsNew[i,4];
+		
+# 	end
+	
+#  end
 
 
 

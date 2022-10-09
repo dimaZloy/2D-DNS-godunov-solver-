@@ -118,34 +118,5 @@
 end
 
 
-function computeStencilsCUDA(
-	beginCell::Int32,endCell::Int32, bettaKJ::Float64, dt::Float64, flowTime::Float64, 
-	testMesh::mesh2d_Int32, testFields::fields2d, thermo::THERMOPHYSICS, 
-	uLeft::Array{Float64,2}, uRight1::Array{Float64,2}, uRight2::Array{Float64,2}, uRight3::Array{Float64,2}, uRight4::Array{Float64,2})
-
-	# uLeftp = zeros(Float64,4);
-	# uUpp = zeros(Float64,4);
-	# uDownp = zeros(Float64,4);
-	# uRightp = zeros(Float64,4);
-	
-	
-	for i = beginCell:endCell
-    
-		num_nodes::Int64 = testMesh.mesh_connectivity[i,3];
-
-		computeInterfaceSlopeCUDA(i, Int32(1), testMesh, testFields, thermo, uLeft, uRight1, flowTime) ;
-		computeInterfaceSlopeCUDA(i, Int32(2), testMesh, testFields, thermo, uLeft, uRight2, flowTime) ;
-		computeInterfaceSlopeCUDA(i, Int32(3), testMesh, testFields, thermo, uLeft, uRight3, flowTime) ;
-
-		if (num_nodes == 4)
-			computeInterfaceSlopeCUDA(i, Int32(4), testMesh, testFields, thermo, uLeft, uRight4, flowTime) ;
-		end
-	
-   
-	end # i - loop for all cells
-
-
-end
-
 
 

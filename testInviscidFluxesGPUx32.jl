@@ -14,6 +14,7 @@ using SharedArrays;
 using HDF5;
 using ProfileView;
 using CUDA;
+using LaTeXStrings;
 
 
 include("primeObjects.jl");
@@ -22,10 +23,10 @@ include("utilsIO.jl");
 
 
 include("AUSMflux2dFast.jl"); #AUSM+ inviscid flux calculation 
-include("RoeFlux2dFast.jl");
-include("AUSMflux2dCUDA.jl");
+#include("RoeFlux2dFast.jl");
+#include("AUSMflux2dCUDA.jl");
 include("AUSMflux2dCUDAx32.jl");
-include("RoeFlux2dCUDA.jl");
+#include("RoeFlux2dCUDA.jl");
 
 include("utilsFVM2dp.jl"); #FVM utililities
 ## utilsFVM2dp::cells2nodesSolutionReconstructionWithStencilsImplicitSA
@@ -53,6 +54,9 @@ include("loadPrevResults.jl");
 include("boundaryConditions_cyl2d.jl");
 include("initfields_cyl2d.jl");
 
+include("boundaryConditions_step2d.jl");
+include("initfields_step2d.jl");
+
 
 
 ## initfields2d::distibuteCellsInThreadsSA()
@@ -70,34 +74,63 @@ include("evaluate2d.jl");
 
 include("limiters.jl");
 include("computeslope2d.jl");
-include("SOUscheme.jl");
+include("computeMUSCLStencilsCUDA.jl");
+include("calcOneStageCUDAx32.jl");
+include("calcOneStageMUSCL.jl");
+include("calcOneStageMUSCLcpuFast.jl");
+
 
 
 ## computeslope2d:: computeInterfaceSlope()
 ## SOUscheme:: SecondOrderUpwindM2()
 
-include("propagate2d.jl");
+#include("propagate2d.jl");
 ## propagate:: calcOneStage() expilict Euler first order
 ## propagate:: doExplicitRK3TVD() expilict RK3-TVD
 
 
+function computeL2norm(testMesh::mesh2d_Int32, testFields::fields2d, thermo::THERMOPHYSICS)::Float64
 
-function ksi(r::Float64, a::Float64, b::Float64, rs::Float64, re::Float64)::Float64
+	diffusion::Float64 = 0.0
 
-	## rb = (r-rs)/(re-rs)
-	return (1.0 - a*(r-rs)/(re-rs)*(r-rs)/(re-rs))* (1.0 - (1.0 - exp(b*(r-rs)/(re-rs)*(r-rs)/(re-rs)))/(1.0 - exp(b)));
+	for i = 1: testMesh.nCells
+		diffusion = diffusion + (testFields.pressureCells[i]/testFields.densityCells[i])^(thermo.Gamma);
+	end
+
+	return diffusion/testMesh.nCells; 
+
 end
 
+ function plotL2norm(file::String)
 
-function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
+ 	@load file*"CPUx64" timeVector L2normVector
+ 	data1 = L2normVector
+ 	@load file*"GPUx32" timeVector L2normVector
+ 	data2 = L2normVector
+ 	#diff = (data1 .- data2)./data1 ;
+	diff = sqrt.( (data1 .- data2).^2 ) ./ length(data1);
+ 	figure(1)
+ 	clf()
+ 	plot(timeVector, diff,"-")
+ 	xlabel("time [s]");
+ 	ylabel("L2 norm");
+ 	title("L2 norm diffusion "*L"(p/_{\rho})^\gamma"*" for GPUx32 inviscid flux");
+	yscale("log");	
+	grid();
+
+	# @load "testStep2dBaseTriSmoothCPUx64" timeVector L2normVector 
+
+ end
+
+function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool, useCuda::Bool )
 
 
-	useCuda = false;
-	debug = true;	
-	viscous = true;
+	#useCuda = true;
+	debug = false;	
+	viscous = false;
 	damping = false;
 	flag2loadPreviousResults = false;
-	GPU32_inviscid = true;
+	
 
 
 
@@ -109,9 +142,12 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 
 	#include("setupSolver_ML2d.jl"); #setup FVM and numerical schemes
 	#include("setupSolver_jet2d.jl"); #setup FVM and numerical schemes
-	include("setupSolver_cyl2d.jl"); #setup FVM and numerical schemes
+	#include("setupSolver_cyl2d.jl"); #setup FVM and numerical schemes
+    include("setupSolver_step2d.jl"); #setup FVM and numerical schemes
 	
 	
+
+
 	## init primitive variables 
 	println("set initial and boundary conditions ...");
 	
@@ -155,31 +191,92 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	iFLUXX  = zeros(Float64,testMesh.nCells,4);
 	dummy  = zeros(Float64,testMesh.nNodes,4);
 
-	uRight1 = zeros(Float64,4,testMesh.nCells);
-	uRight2 = zeros(Float64,4,testMesh.nCells);
-	uRight3 = zeros(Float64,4,testMesh.nCells);
-	uRight4 = zeros(Float64,4,testMesh.nCells);
+	 uRight1 = zeros(Float64,4,testMesh.nCells);
+	 uRight2 = zeros(Float64,4,testMesh.nCells);
+	 uRight3 = zeros(Float64,4,testMesh.nCells);
+	 uRight4 = zeros(Float64,4,testMesh.nCells);
 
-	uLeft = zeros(Float64,4,testMesh.nCells);
+	 uLeft1 = zeros(Float64,4,testMesh.nCells);
+	 uLeft2 = zeros(Float64,4,testMesh.nCells);
+	 uLeft3 = zeros(Float64,4,testMesh.nCells);
+	 uLeft4 = zeros(Float64,4,testMesh.nCells);
 
 	iFluxV1 = zeros(Float64,testMesh.nCells);
 	iFluxV2 = zeros(Float64,testMesh.nCells);
 	iFluxV3 = zeros(Float64,testMesh.nCells);
 	iFluxV4 = zeros(Float64,testMesh.nCells);
+
+	# iFlux1 = zeros(Float64,4,testMesh.nCells);
+	# iFlux2 = zeros(Float64,4,testMesh.nCells);
+	# iFlux3 = zeros(Float64,4,testMesh.nCells);
+	# iFlux4 = zeros(Float64,4,testMesh.nCells);
 	
 	###################################################################################
 	## Vectors for CUDA 
 
-	if (GPU32_inviscid)
-		include("cuda_data_x32.jl")
-	else
-		include("cuda_data_x64.jl")
-	end
 
-	
-	
-	
-	
+	# uRight1 = zeros(Float32,4,testMesh.nCells);
+	# uRight2 = zeros(Float32,4,testMesh.nCells);
+	# uRight3 = zeros(Float32,4,testMesh.nCells);
+	# uRight4 = zeros(Float32,4,testMesh.nCells);
+
+	# uLeft1 = zeros(Float32,4,testMesh.nCells);
+	# uLeft2 = zeros(Float32,4,testMesh.nCells);
+	# uLeft3 = zeros(Float32,4,testMesh.nCells);
+	# uLeft4 = zeros(Float32,4,testMesh.nCells);
+
+ 	
+    SidesV = zeros(Float32,testMesh.nCells*4);
+	nxV = zeros(Float32,testMesh.nCells*4);
+	nyV = zeros(Float32,testMesh.nCells*4);
+
+	SidesV[1:testMesh.nCells] 						= testMesh.cell_edges_length[1:end,1];
+	SidesV[testMesh.nCells*1+1: testMesh.nCells*2] 	= testMesh.cell_edges_length[1:end,2];
+	SidesV[testMesh.nCells*2+1: testMesh.nCells*3] 	= testMesh.cell_edges_length[1:end,3];
+	SidesV[testMesh.nCells*3+1: end] 				= testMesh.cell_edges_length[1:end,4];
+
+	nxV[1:testMesh.nCells] 						= testMesh.cell_edges_Nx[1:end,1];
+	nxV[testMesh.nCells*1+1: testMesh.nCells*2] = testMesh.cell_edges_Nx[1:end,2];
+	nxV[testMesh.nCells*2+1: testMesh.nCells*3] = testMesh.cell_edges_Nx[1:end,3];
+	nxV[testMesh.nCells*3+1: end] 				= testMesh.cell_edges_Nx[1:end,4];
+
+	nyV[1:testMesh.nCells] 						= testMesh.cell_edges_Ny[1:end,1];
+	nyV[testMesh.nCells*1+1: testMesh.nCells*2] = testMesh.cell_edges_Ny[1:end,2];
+	nyV[testMesh.nCells*2+1: testMesh.nCells*3] = testMesh.cell_edges_Ny[1:end,3];
+	nyV[testMesh.nCells*3+1: end] 				= testMesh.cell_edges_Ny[1:end,4];
+
+	numNeibs = copy(testMesh.mesh_connectivity[:,3]);
+
+	cuNeibsV = CuVector{Int32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+
+	curLeftV = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuULeftV = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuVLeftV = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuPLeftV = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+
+	curRightV = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuURightV = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuVRightV = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuPRightV = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells) 
+
+	cuSideV1234 = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells*4)
+	cuNxV1234 = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells*4)
+	cuNyV1234 = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells*4)
+	cuFluxV1234 = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells*4)
+
+	cuFluxV1 = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuFluxV2 = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuFluxV3 = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+	cuFluxV4 = CuVector{Float32, Mem.DeviceBuffer}(undef,testMesh.nCells)
+
+
+	copyto!(cuSideV1234, SidesV)
+	copyto!(cuNxV1234, nxV)
+	copyto!(cuNyV1234, nyV)
+
+	copyto!(cuNeibsV,numNeibs )
+
+
 	###################################################################################
 	
 	phs2dcns2dcellsSA(UconsCellsOldX,testfields2d, thermo.Gamma);	
@@ -196,38 +293,8 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	residualsVector3 = []; 
 	residualsVector4 = []; 
 	residualsVectorMax = ones(Float64,4);
-	convergenceCriteria= [1e-5;1e-5;1e-5;1e-5;];
-	
-	
-	# debugSaveInit = false;
-	# if (debugSaveInit)
-	
-		# rhoNodes = zeros(Float64,testMesh.nNodes);
-		# uxNodes = zeros(Float64,testMesh.nNodes);
-		# uyNodes = zeros(Float64,testMesh.nNodes);
-		# pNodes = zeros(Float64,testMesh.nNodes);
-	
-		# cells2nodesSolutionReconstructionWithStencilsImplicitSA(nodesThreadsX, testMeshDistrX, testfields2dX, dummy); 
-	
-		# for i = 1:testMesh.nNodes
-			# rhoNodes[i] = testfields2dX.densityNodes[i];
-			# uxNodes[i] = testfields2dX.UxNodes[i];
-			# uyNodes[i] = testfields2dX.UyNodes[i];
-			# pNodes[i] = testfields2dX.pressureNodes[i];
-		# end
-		
-		# outputfileZero = string(outputfile,"_t=0");
-		# println("Saving  solution to  ", outputfileZero);
-			# #saveResults2VTK(outputfile, testMesh, densityF);
-			# saveResults4VTK(outputfileZero, testMesh, rhoNodes, uxNodes, uyNodes, pNodes);
-		# println("done ...  ");	
-		
-		
-		# @save outputfileZero solInst
-		
-	# end
-	
-	
+	convergenceCriteria = [1e-5;1e-5;1e-5;1e-5;];
+	L2normVector = []; 
 	
 	maxEdge,id = findmax(testMesh.HX);
 
@@ -235,12 +302,6 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 	# @everywhere dtX = $dt; 
 	# @everywhere maxEdgeX = $maxEdge; 
 
-	
-	UconsRef = zeros(4);
-	UconsRef[1] = 1.1766766855256956;
-	UconsRef[2] = 1.1766766855256956*19.964645104094163;
-	UconsRef[3] = 0.0;
-	UconsRef[4] = 101325.0/(thermo.Gamma -1.0) + 0.5*1.1766766855256956*(19.964645104094163*19.964645104094163 + 0.0*0.0);
 
 	
 	println("Start calculations ...");
@@ -264,20 +325,22 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 		
 			
 			if (viscous)
-			
-				#calcArtificialViscositySA( cellsThreads, testMesh, thermo, testfields2d, viscfields2d);		
 				calcDiffTerm(cellsThreads, nodesThreads, testMesh, testfields2d, viscfields2d, thermo, UconsNodesOldX, UConsDiffCellsX);
-			
 			end
 	
+			
+			
 
 			if (CUDA.has_cuda() && useCuda)
 			
-
-			 	 calcOneStageCUDA(1.0, solControls.dt, dynControls.flowTime, 
+				 
+				computeMUSCLStencilsCUDA(cellsThreads, testMesh, testfields2d, thermo,	
+				uLeft1, uLeft2, uLeft3, uLeft4, uRight1, uRight2, uRight3, uRight4, numNeibs, dynControls.flowTime);
+				
+			 	 calcOneStageCUDAx32(1.0, solControls.dt, dynControls.flowTime, 
 				 		testMesh , testfields2d, thermo, cellsThreads,  
 				 		UconsCellsOldX, UConsDiffCellsX,  UconsCellsNewX, 
-			 	 		uLeft, 
+			 	 		uLeft1, uLeft2, uLeft3, uLeft4, 
 						uRight1, uRight2, uRight3, uRight4,
 						iFluxV1, iFluxV2, iFluxV3, iFluxV4, 
 						curLeftV, cuULeftV, cuVLeftV, cuPLeftV, 
@@ -292,39 +355,17 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			else
 
 			 	## Explicit Euler first-order	
-			 	## calcOneStage(1.0, solControls.dt, dynControls.flowTime, testMesh , testfields2d, thermo, cellsThreads,  UconsCellsOldX, iFLUXX, UConsDiffCellsX,  UconsCellsNewX);
+			 	
 
-				Threads.@threads for p in 1:Threads.nthreads()	
-					SecondOrderUpwindM2(cellsThreads[p,1], cellsThreads[p,2], 1.0, solControls.dt, dynControls.flowTime,  
-						testMesh, testfields2d, thermo, UconsCellsOldX, iFLUXX, UConsDiffCellsX,  UconsCellsNewX);
-				end
+				 calcOneStageMUSCLcpuFast(cellsThreads, 1.0, solControls.dt, dynControls.flowTime,  
+				 	testMesh, testfields2d, thermo, UconsCellsOldX, iFLUXX, UConsDiffCellsX,  UconsCellsNewX);	
 
-			end
+			
 
+				 #calcOneStageMUSCL(1.0, solControls.dt, dynControls.flowTime, 
+				 #	testMesh, testfields2d, thermo, cellsThreads, UconsCellsOldX, UConsDiffCellsX,  UconsCellsNewX, 
+			 	 # 		uLeft1,  uLeft2, uLeft3, uLeft4,  uRight1, uRight2, uRight3, uRight4, iFLUXX);
 
-			if (damping)
-
-				Threads.@threads for p in 1:Threads.nthreads()
-					for i = cellsThreads[p,1]:cellsThreads[p,2]
-						
-						# calc rad = sqrt(x*x + yy)
-						r::Float64 = sqrt(testMesh.cell_mid_points[i,1]*testMesh.cell_mid_points[i,1]  + testMesh.cell_mid_points[i,2]*testMesh.cell_mid_points[i,2] ); 
-
-						if r >= 2.5
-							#UconsCellsNewX[i,1] = 	UconsRef[1] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,1] - UconsRef[1]) ;
-							#UconsCellsNewX[i,2] = 	UconsRef[2] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,2] - UconsRef[2]) ;
-							#UconsCellsNewX[i,3] = 	UconsRef[3] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,3] - UconsRef[3]) ;
-							#UconsCellsNewX[i,4] = 	UconsRef[4] - ksi(r,0.1,20.0,2.0,4.0)*( UconsCellsNewX[i,4] - UconsRef[4]) ;
-
-							UconsCellsNewX[i,1] = 	ksi(r,0.1,20.0,2.5,4.0)* UconsCellsNewX[i,1] + (1.0-ksi(r,0.1,20.0,2.5,4.0))*UconsRef[1] ;
-							UconsCellsNewX[i,2] = 	ksi(r,0.1,20.0,2.5,4.0)* UconsCellsNewX[i,2] + (1.0-ksi(r,0.1,20.0,2.5,4.0))*UconsRef[2] ;
-							UconsCellsNewX[i,3] = 	ksi(r,0.1,20.0,2.5,4.0)* UconsCellsNewX[i,3] + (1.0-ksi(r,0.1,20.0,2.5,4.0))*UconsRef[3] ;
-							UconsCellsNewX[i,4] = 	ksi(r,0.1,20.0,2.5,4.0)* UconsCellsNewX[i,4] + (1.0-ksi(r,0.1,20.0,2.5,4.0))*UconsRef[4] ;
-
-						end
-					
-					end
-				end
 
 			end
 			
@@ -332,66 +373,19 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 			#  UconsCellsNew1X,UconsCellsNew2X,UconsCellsNew3X,UconsCellsNewX);
 			
 			
-			if (solControls.densityConstrained==1)
-
-				Threads.@threads for p in 1:Threads.nthreads()
-					for i = cellsThreads[p,1]:cellsThreads[p,2]
-						
-						if  UconsCellsNewX[i,1] >= solControls.maxDensityConstrained
-							UconsCellsNewX[i,1] = solControls.maxDensityConstrained;
-						end		
-						if  UconsCellsNewX[i,1] <= solControls.minDensityConstrained
-							UconsCellsNewX[i,1] = solControls.minDensityConstrained;
-						end		
-
-					end
-				end
-			end
-
-			(dynControls.rhoMax,id) = findmax(testfields2d.densityCells);
-			(dynControls.rhoMin,id) = findmin(testfields2d.densityCells);
-
 			
-			#@sync @distributed for p in workers()
-			Threads.@threads for p in 1:Threads.nthreads()			
-	
-				#beginCell::Int32 = cellsThreads[p,1];
-				#endCell::Int32 = cellsThreads[p,2];
-				#println("worker: ",p,"\tbegin cell: ",beginCell,"\tend cell: ", endCell);										
-				#updateVariablesSA(beginCell, endCell, thermo.Gamma,  UconsCellsNewX, UconsCellsOldX, DeltaX, testfields2d);
-				updateVariablesSA(cellsThreads[p,1], cellsThreads[p,2], thermo.Gamma,  UconsCellsNewX, UconsCellsOldX, DeltaX, testfields2d);
-		
-			end
+			updateVariablesSA(cellsThreads, thermo.Gamma,  UconsCellsNewX, UconsCellsOldX, DeltaX, testfields2d, solControls, dynControls );
 			
-			
-			
-			
-			 #@sync @distributed for p in workers()	
-			 Threads.@threads for p in 1:Threads.nthreads()
-	
-				#  beginNode::Int32 = nodesThreads[p,1];
-				#  endNode::Int32 = nodesThreads[p,2];														
-				#  cells2nodesSolutionReconstructionWithStencilsDistributed(beginNode, endNode, 
-				# 	testMesh, testfields2d, viscfields2d, UconsCellsOldX,  UconsNodesOldX);
-				cells2nodesSolutionReconstructionWithStencilsDistributed(nodesThreads[p,1],nodesThreads[p,2],
-				 	testMesh, testfields2d, viscfields2d, UconsCellsOldX,  UconsNodesOldX);
-		
-			 end
-			
-			
-			
-			
-			#cells2nodesSolutionReconstructionWithStencilsSerial(testMeshX,testfields2dX, viscfields2dX, UconsCellsOldX,  UconsNodesOldX);
-								
-	
+			cells2nodesSolutionReconstructionWithStencils(nodesThreads,	testMesh, testfields2d, viscfields2d, UconsCellsOldX,  UconsNodesOldX);
 			
 
+
+			# update time step
 			push!(timeVector, dynControls.flowTime); 
 			dynControls.curIter += 1; 
 			dynControls.verIter += 1;
+			push!(L2normVector, computeL2norm(testMesh, testfields2d, thermo)); 
 				
-			
-			
 			
 			updateResidualSA(DeltaX, 
 				residualsVector1,residualsVector2,residualsVector3,residualsVector4, residualsVectorMax,  
@@ -480,8 +474,17 @@ function godunov2dthreads(pname::String, outputfile::String, coldrun::Bool)
 		end
 				
 		println("Saving  solution to  ", outputfile);
-			saveResults4VTK(outputfile, testMesh, rhoNodes, uxNodes, uyNodes, pNodes);
-			@save outputfile solInst
+
+		if useCuda
+			saveResults4VTK(outputfile*"GPUx32", testMesh, rhoNodes, uxNodes, uyNodes, pNodes);
+			@save outputfile*"GPUx32" solInst timeVector L2normVector
+			#@save outputfile*"L2normGPUx32"  timeVector L2normVector
+		else
+			saveResults4VTK(outputfile*"CPUx64", testMesh, rhoNodes, uxNodes, uyNodes, pNodes);
+			@save outputfile*"CPUx64" solInst timeVector L2normVector
+			#@save outputfile*"L2normCPUx32"  timeVector L2normVector
+
+		end	
 		println("done ...  ");	
 		
 		 
@@ -493,12 +496,10 @@ end
 
 
 
-#godunov2dthreads("2mixinglayer_1200x480", "2mixinglayer_1200x480", false); 
-#godunov2dthreads("2mixinglayer_1800x720q", "2mixinglayer_1800x720q", false); 
-#godunov2dthreads("2dmixinglayerUp_delta3",  "2dmixinglayerUp_delta3", false); 
+#godunov2dthreads("testStep2dBaseTriSmooth",  "testStep2dBaseTriSmooth", false, false);  ## CPUx64
+#godunov2dthreads("testStep2dBaseTriSmooth",  "testStep2dBaseTriSmooth", false, true);  ## GPUx32
+plotL2norm("testStep2dBaseTriSmooth")
 
-#godunov2dthreads("jet2d_v03tri",  "jet2d_v03tri", false); 
-godunov2dthreads("cyl2d_laminar_test",  "cyl2d_laminar_test", false); 
 
 
 

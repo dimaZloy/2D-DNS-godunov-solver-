@@ -118,31 +118,19 @@
 
 	ksi::Float64 = 1.0e-12;
 	
-	# UpLeft[1]  = uLeftp[1] + 0.5*Minmod_Limiter( uLeftp[1]  - uDownp[1], uRightp[1] - uLeftp[1], ksi);
-	# UpLeft[2]  = uLeftp[2] + 0.5*Minmod_Limiter( uLeftp[2]  - uDownp[2], uRightp[2] - uLeftp[2], ksi);
-	# UpLeft[3]  = uLeftp[3] + 0.5*Minmod_Limiter( uLeftp[3]  - uDownp[3], uRightp[3] - uLeftp[3], ksi);
-	# UpLeft[4]  = uLeftp[4] + 0.5*Minmod_Limiter( uLeftp[4]  - uDownp[4], uRightp[4] - uLeftp[4], ksi);
+	 UpLeft[1]  = uLeftp[1] + 0.5*Minmod_Limiter( uLeftp[1]  - uDownp[1], uRightp[1] - uLeftp[1], ksi);
+	 UpLeft[2]  = uLeftp[2] + 0.5*Minmod_Limiter( uLeftp[2]  - uDownp[2], uRightp[2] - uLeftp[2], ksi);
+	 UpLeft[3]  = uLeftp[3] + 0.5*Minmod_Limiter( uLeftp[3]  - uDownp[3], uRightp[3] - uLeftp[3], ksi);
+	 UpLeft[4]  = uLeftp[4] + 0.5*Minmod_Limiter( uLeftp[4]  - uDownp[4], uRightp[4] - uLeftp[4], ksi);
 						
-	# UpRight[1] = uRightp[1] - 0.5*Minmod_Limiter( uRightp[1] - uLeftp[1], uUpp[1]  - uRightp[1],  ksi);
-	# UpRight[2] = uRightp[2] - 0.5*Minmod_Limiter( uRightp[2] - uLeftp[2], uUpp[2]  - uRightp[2],  ksi);	
-	# UpRight[3] = uRightp[3] - 0.5*Minmod_Limiter( uRightp[3] - uLeftp[3], uUpp[3]  - uRightp[3],  ksi);
-	# UpRight[4] = uRightp[4] - 0.5*Minmod_Limiter( uRightp[4] - uLeftp[4], uUpp[4]  - uRightp[4],  ksi);
+	 UpRight[1] = uRightp[1] - 0.5*Minmod_Limiter( uRightp[1] - uLeftp[1], uUpp[1]  - uRightp[1],  ksi);
+	 UpRight[2] = uRightp[2] - 0.5*Minmod_Limiter( uRightp[2] - uLeftp[2], uUpp[2]  - uRightp[2],  ksi);	
+	 UpRight[3] = uRightp[3] - 0.5*Minmod_Limiter( uRightp[3] - uLeftp[3], uUpp[3]  - uRightp[3],  ksi);
+	 UpRight[4] = uRightp[4] - 0.5*Minmod_Limiter( uRightp[4] - uLeftp[4], uUpp[4]  - uRightp[4],  ksi);
 				
-	UpLeft[1]  = uLeftp[1] + 0.5*vanLeer_LimiterA( uLeftp[1]  - uDownp[1], uRightp[1] - uLeftp[1], ksi);
-	UpLeft[2]  = uLeftp[2] + 0.5*vanLeer_LimiterA( uLeftp[2]  - uDownp[2], uRightp[2] - uLeftp[2], ksi);
-	UpLeft[3]  = uLeftp[3] + 0.5*vanLeer_LimiterA( uLeftp[3]  - uDownp[3], uRightp[3] - uLeftp[3], ksi);
-	UpLeft[4]  = uLeftp[4] + 0.5*vanLeer_LimiterA( uLeftp[4]  - uDownp[4], uRightp[4] - uLeftp[4], ksi);
-						
-	UpRight[1] = uRightp[1] - 0.5*vanLeer_LimiterA( uRightp[1] - uLeftp[1], uUpp[1]  - uRightp[1],  ksi);
-	UpRight[2] = uRightp[2] - 0.5*vanLeer_LimiterA( uRightp[2] - uLeftp[2], uUpp[2]  - uRightp[2],  ksi);	
-	UpRight[3] = uRightp[3] - 0.5*vanLeer_LimiterA( uRightp[3] - uLeftp[3], uUpp[3]  - uRightp[3],  ksi);
-	UpRight[4] = uRightp[4] - 0.5*vanLeer_LimiterA( uRightp[4] - uLeftp[4], uUpp[4]  - uRightp[4],  ksi);
 
-	
-	
-	#AUSMplusFlux2dFast(UpRight[1],UpRight[2],UpRight[3],UpRight[4],UpLeft[1],UpLeft[2],UpLeft[3],UpLeft[4], nx,ny,side,thermo.Gamma, flux);	
-	AUSMplusM2020Flux2dFast(UpRight[1],UpRight[2],UpRight[3],UpRight[4],UpLeft[1],UpLeft[2],UpLeft[3],UpLeft[4], nx,ny,side,thermo.Gamma, flux);	
-	#AUSMplusUpFlux2dFast(UpRight[1],UpRight[2],UpRight[3],UpRight[4],UpLeft[1],UpLeft[2],UpLeft[3],UpLeft[4], nx,ny,side,thermo.Gamma, flux);	
+	AUSMplusFlux2dFast(UpRight[1],UpRight[2],UpRight[3],UpRight[4],UpLeft[1],UpLeft[2],UpLeft[3],UpLeft[4], nx,ny,side,thermo.Gamma, flux);	
+	#AUSMplusM2020Flux2dFast(UpRight[1],UpRight[2],UpRight[3],UpRight[4],UpLeft[1],UpLeft[2],UpLeft[3],UpLeft[4], nx,ny,side,thermo.Gamma, flux);	
 	
 	#RoeFlux2dFast(UpRight[1],UpRight[2],UpRight[3],UpRight[4],UpLeft[1],UpLeft[2],UpLeft[3],UpLeft[4], nx,ny,side,thermo.Gamma, flux);	
 	
@@ -266,7 +254,7 @@ end
 	end
 				
 				
-	ksi::Float64 = 1.0e-6;
+		ksi::Float64 = 1.0e-12;
 				
 	
 	  UpLeft[1,i]  = uLeftp[1] + 0.5*Minmod_Limiter( uLeftp[1]  - uDownp[1], uRightp[1] - uLeftp[1], ksi);
@@ -278,18 +266,6 @@ end
 	  UpRight[2,i] = uRightp[2] - 0.5*Minmod_Limiter( uRightp[2] - uLeftp[2], uUpp[2]  - uRightp[2],  ksi);	
 	  UpRight[3,i] = uRightp[3] - 0.5*Minmod_Limiter( uRightp[3] - uLeftp[3], uUpp[3]  - uRightp[3],  ksi);
 	  UpRight[4,i] = uRightp[4] - 0.5*Minmod_Limiter( uRightp[4] - uLeftp[4], uUpp[4]  - uRightp[4],  ksi);
-
-
-	#  UpLeft[1,i]  = uLeftp[1] ;
-	#  UpLeft[2,i]  = uLeftp[2] ;
-	#  UpLeft[3,i]  = uLeftp[3] ;
-	#  UpLeft[4,i]  = uLeftp[4] ;
-					
-	#  UpRight[1,i] = uRightp[1] ;
-	#  UpRight[2,i] = uRightp[2] ;	
-	#  UpRight[3,i] = uRightp[3] ;
-	#  UpRight[4,i] = uRightp[4] ;
-
 
 
 						

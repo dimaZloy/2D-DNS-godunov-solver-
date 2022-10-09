@@ -78,8 +78,8 @@ function kernel_AUSM2d(rhoL, _UL, _VL, PL, rhoR, _UR, _VR, PR, nx, ny, side, flu
           htL::Float64 =  PL[i]/rhoL[i]/(gammaV-1.0) + 0.5*(_UL[i]*_UL[i] + _VL[i]*_VL[i]) +  PL[i]/rhoL[i]; 
           htR::Float64 =  PR[i]/rhoR[i]/(gammaV-1.0) + 0.5*(_UR[i]*_UR[i] + _VR[i]*_VR[i]) +  PR[i]/rhoR[i];
 
-          aL_til::Float64 = CUDA.sqrt(2.0*( gammaV-1.0)/(gammaV+1.0)*htL) * min(1.0, (sqrt(2.0*( gammaV-1.0)/(gammaV+1.0)*htL))/CUDA.abs( _UL[i]*nx[i+j] + _VL[i]*ny[i+j] ));
-          aR_til::Float64 = CUDA.sqrt(2.0*( gammaV-1.0)/(gammaV+1.0)*htR) * min(1.0, (sqrt(2.0*( gammaV-1.0)/(gammaV+1.0)*htR))/CUDA.abs( _UR[i]*nx[i+j] + _VR[i]*ny[i+j] ));
+          aL_til::Float64 = CUDA.sqrt(2.0*( gammaV-1.0)/(gammaV+1.0)*htL) * CUDA.min(1.0, (CUDA.sqrt(2.0*( gammaV-1.0)/(gammaV+1.0)*htL))/CUDA.abs( _UL[i]*nx[i+j] + _VL[i]*ny[i+j] ));
+          aR_til::Float64 = CUDA.sqrt(2.0*( gammaV-1.0)/(gammaV+1.0)*htR) * CUDA.min(1.0, (CUDA.sqrt(2.0*( gammaV-1.0)/(gammaV+1.0)*htR))/CUDA.abs( _UR[i]*nx[i+j] + _VR[i]*ny[i+j] ));
           a12::Float64 = CUDA.min(aL_til,aR_til);
              
           m_dot12::Float64 = cuM_p( (_UL[i]*nx[i+j] + _VL[i]*ny[i+j])/a12,1.0/8.0)         + cuM_m( (_UR[i]*nx[i+j] + _VR[i]*ny[i+j])/a12,1.0/8.0);

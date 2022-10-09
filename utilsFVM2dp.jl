@@ -296,71 +296,71 @@ end
 # end
 
 
-@everywhere @inline function cells2nodesSolutionReconstructionWithStencilsDistributed(beginNode::Int32, endNode::Int32,
+@inline function cells2nodesSolutionReconstructionWithStencils(nodesThreads:: Array{Int32,2},
 	testMesh::mesh2d_Int32, testfields2d::fields2d, viscfields2d::viscousFields2d, 
 	cell_solution::Array{Float64,2}, node_solution::Array{Float64,2})
 
+	Threads.@threads for p in 1:Threads.nthreads()
 			
-			
-@fastmath	for J= beginNode:endNode
-			
-				det::Float64 = 0.0;
+	@fastmath	for J = nodesThreads[p,1]:nodesThreads[p,2]
 				
-				nNeibCells = size(testMesh.cell_clusters,2);
-				
-				testfields2d.densityNodes[J] 		= 0.0;
-				testfields2d.UxNodes[J] 			= 0.0;
-				testfields2d.UyNodes[J] 			= 0.0;
-				testfields2d.pressureNodes[J] 		= 0.0;
-				#viscfields2d.artViscosityNodes[J] 	= 0.0;
-				
-				node_solution[J,1] = 0.0;
-				node_solution[J,2] = 0.0;
-				node_solution[J,3] = 0.0;
-				node_solution[J,4] = 0.0;
-				
-				for j = 1:nNeibCells
-				
-					neibCell::Int32 = testMesh.cell_clusters[J,j]; 
+					det::Float64 = 0.0;
 					
-					if (neibCell !=0)
-						wi::Float64 = testMesh.node_stencils[J,j];
+					nNeibCells = size(testMesh.cell_clusters,2);
+					
+					testfields2d.densityNodes[J] 		= 0.0;
+					testfields2d.UxNodes[J] 			= 0.0;
+					testfields2d.UyNodes[J] 			= 0.0;
+					testfields2d.pressureNodes[J] 		= 0.0;
+					#viscfields2d.artViscosityNodes[J] 	= 0.0;
+					
+					node_solution[J,1] = 0.0;
+					node_solution[J,2] = 0.0;
+					node_solution[J,3] = 0.0;
+					node_solution[J,4] = 0.0;
+					
+					for j = 1:nNeibCells
+					
+						neibCell::Int32 = testMesh.cell_clusters[J,j]; 
 						
-						
-						node_solution[J,1] 					+= cell_solution[neibCell,1]*wi;
-						node_solution[J,2] 					+= cell_solution[neibCell,2]*wi;
-						node_solution[J,3] 					+= cell_solution[neibCell,3]*wi;
-						node_solution[J,4] 					+= cell_solution[neibCell,4]*wi;
-						
-						testfields2d.densityNodes[J] 		+=  testfields2d.densityCells[neibCell]*wi;
-						testfields2d.UxNodes[J] 			+=  testfields2d.UxCells[neibCell]*wi;
-						testfields2d.UyNodes[J] 			+=  testfields2d.UyCells[neibCell]*wi;
-						testfields2d.pressureNodes[J] 		+=  testfields2d.pressureCells[neibCell]*wi;
-						
-						#viscfields2d.artViscosityNodes[J] 	+= viscfields2d.artViscosityCells[neibCell]*wi;
-						
-						det += wi;
+						if (neibCell !=0)
+							wi::Float64 = testMesh.node_stencils[J,j];
+							
+							
+							node_solution[J,1] 					+= cell_solution[neibCell,1]*wi;
+							node_solution[J,2] 					+= cell_solution[neibCell,2]*wi;
+							node_solution[J,3] 					+= cell_solution[neibCell,3]*wi;
+							node_solution[J,4] 					+= cell_solution[neibCell,4]*wi;
+							
+							testfields2d.densityNodes[J] 		+=  testfields2d.densityCells[neibCell]*wi;
+							testfields2d.UxNodes[J] 			+=  testfields2d.UxCells[neibCell]*wi;
+							testfields2d.UyNodes[J] 			+=  testfields2d.UyCells[neibCell]*wi;
+							testfields2d.pressureNodes[J] 		+=  testfields2d.pressureCells[neibCell]*wi;
+							
+							#viscfields2d.artViscosityNodes[J] 	+= viscfields2d.artViscosityCells[neibCell]*wi;
+							
+							det += wi;
+						end
 					end
-				end
-				
-				if (det!=0)
-				
-					testfields2d.densityNodes[J] = testfields2d.densityNodes[J]/det; 
-					testfields2d.UxNodes[J] = testfields2d.UxNodes[J]/det; 
-					testfields2d.UyNodes[J] = testfields2d.UyNodes[J]/det; 
-					testfields2d.pressureNodes[J] = testfields2d.pressureNodes[J]/det; 
-					#viscfields2d.artViscosityNodes[J] = viscfields2d.artViscosityNodes[J]/det;
 					
-					node_solution[J,1] = node_solution[J,1]/det; 
-					node_solution[J,2] = node_solution[J,2]/det; 
-					node_solution[J,3] = node_solution[J,3]/det; 
-					node_solution[J,4] = node_solution[J,4]/det; 
-				end
-				
-				
-			end ## for
+					if (det!=0)
+					
+						testfields2d.densityNodes[J] = testfields2d.densityNodes[J]/det; 
+						testfields2d.UxNodes[J] = testfields2d.UxNodes[J]/det; 
+						testfields2d.UyNodes[J] = testfields2d.UyNodes[J]/det; 
+						testfields2d.pressureNodes[J] = testfields2d.pressureNodes[J]/det; 
+						#viscfields2d.artViscosityNodes[J] = viscfields2d.artViscosityNodes[J]/det;
+						
+						node_solution[J,1] = node_solution[J,1]/det; 
+						node_solution[J,2] = node_solution[J,2]/det; 
+						node_solution[J,3] = node_solution[J,3]/det; 
+						node_solution[J,4] = node_solution[J,4]/det; 
+					end
+					
+					
+				end ## for
 
-
+			end ## threads
 
 end
 
