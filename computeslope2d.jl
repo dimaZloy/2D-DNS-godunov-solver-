@@ -95,11 +95,8 @@
 	else
 					
 		
-		##yc::Float64 = testMesh.cell_mid_points[i,2]; 
-		##uRightp = ComputeUPhysFromBoundaries(i,k, ek, uLeftp, nx,ny, yc, thermo.Gamma, flowTime );
-		
-		ComputeUPhysFromBoundaries(i,k, ek, uLeftp, nx,ny, testMesh.cell_mid_points[i,2], thermo.Gamma, flowTime ,uRightp);
-					
+		ComputeUPhysFromBoundaries(i,index, uLeftp, testMesh, thermo, flowTime, uRightp);
+
 		 uDownp[1] = uLeftp[1];
 		 uDownp[2] = uLeftp[2];
 		 uDownp[3] = uLeftp[3];

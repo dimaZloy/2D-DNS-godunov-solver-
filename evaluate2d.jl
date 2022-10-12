@@ -158,7 +158,8 @@ function updateVariablesSA(
 	solControls::CONTROLS,
 	output::outputCONTROLS,
 	dynControls::DYNAMICCONTROLS,
-	solInst::solutionCellsT)
+	solInst::solutionCellsT,
+	thermo::THERMOPHYSICS)
 
 	if (dynControls.verIter == output.verbosity)
 
@@ -205,8 +206,37 @@ function updateVariablesSA(
 		if (solControls.plotResidual == 1)	
 
 
+
+			TGV2dDensityNodes  = ones(Float64,testMesh.nNodes); 
+			TGV2dUMagNodes  = zeros(Float64,testMesh.nNodes); 
+			TGV2dPressureNodes  = zeros(Float64,testMesh.nNodes); 
+
+			dummy4 = zeros(Float64,4);
+
+			maxP::Float64 = 100000.0;
+			minP::Float64 = 100000.0;
+
+			for i=1:testMesh.nNodes
+
+				computeTGV2d(testMesh.xNodes[i], testMesh.yNodes[i], dynControls.flowTime, thermo, dummy4);
+
+				TGV2dDensityNodes[i] 	= dummy4[1];
+				TGV2dUMagNodes[i] 		= sqrt(dummy4[2]*dummy4[2] + dummy4[3]*dummy4[3]);
+				TGV2dPressureNodes[i] 	= dummy4[4];
+				
+				# if TGV2dPressureNodes[i] >= maxP
+				# 	maxP = TGV2dPressureNodes[i];
+				# end
+
+				# if TGV2dPressureNodes[i] <  minP
+				# 	minP = TGV2dPressureNodes[i];
+				# end
+
+						
+			end
+
 			
-			subplot(2,1,1);	
+			subplot(3,2,2);	
 			cla();
 			
 			##tricontourf(testMesh.xNodes,testMesh.yNodes, triangles, densityF,pControls.nContours,vmin=pControls.rhoMINcont,vmax=pControls.rhoMAXcont);
@@ -218,35 +248,82 @@ function updateVariablesSA(
 			title("Contours of density");
 			axis("equal");
 
-			#subplot(3,1,2);	
-			#cla();
-			
-			#tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFieldsViscous.artViscosityNodes);
-			
-			#set_cmap("jet");
-			#xlabel("x");
-			#ylabel("y");
-			#title("Contours of Artificial viscosity");
-			#axis("equal");
-			
-			
-			
-			
-			subplot(2,1,2);
+			subplot(3,2,4);	
 			cla();
 			
-			if (size(timeVector,1) >1)
-				plot(timeVector, residualsVector1./residualsVectorMax[1],"-r",label="continuity"); 
-				plot(timeVector, residualsVector2./residualsVectorMax[2],"-g",label="momentum ux"); 
-				plot(timeVector, residualsVector3./residualsVectorMax[3],"-b",label="momentum uy"); 
-				plot(timeVector, residualsVector4./residualsVectorMax[4],"-c",label="energy"); 
-			end
+			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFields.pressureNodes);#, vmin=minP,vmax=maxP);
 			
-			yscale("log");	
-			xlabel("flow time [s]");
-			ylabel("Res");
-			title("Residuals");
-			legend();
+			set_cmap("jet");
+			xlabel("x");
+			ylabel("y");
+			title("Contours of pressure");
+			axis("equal");
+			
+
+			subplot(3,2,6);	
+			cla();
+			
+			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, sqrt.(testFields.UxNodes.*testFields.UxNodes .+ testFields.UyNodes.*testFields.UyNodes) );
+			
+			set_cmap("jet");
+			xlabel("x");
+			ylabel("y");
+			title("Contours of Umag");
+			axis("equal");
+			
+			#############################################################################################
+
+			subplot(3,2,1);	
+			cla();
+			
+			##tricontourf(testMesh.xNodes,testMesh.yNodes, triangles, densityF,pControls.nContours,vmin=pControls.rhoMINcont,vmax=pControls.rhoMAXcont);
+			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, TGV2dDensityNodes);
+			
+			set_cmap("jet");
+			xlabel("x");
+			ylabel("y");
+			title("Contours of density");
+			axis("equal");
+
+			subplot(3,2,3);	
+			cla();
+			
+			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, TGV2dPressureNodes);#, vmin=minP,vmax=maxP);
+			
+			set_cmap("jet");
+			xlabel("x");
+			ylabel("y");
+			title("Contours of pressure");
+			axis("equal");
+			
+
+			subplot(3,2,5);	
+			cla();
+			
+			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, TGV2dUMagNodes );
+			
+			set_cmap("jet");
+			xlabel("x");
+			ylabel("y");
+			title("Contours of Umag");
+			axis("equal");
+			
+			
+			# subplot(2,1,2);
+			# cla();
+			
+			# if (size(timeVector,1) >1)
+			# 	plot(timeVector, residualsVector1./residualsVectorMax[1],"-r",label="continuity"); 
+			# 	plot(timeVector, residualsVector2./residualsVectorMax[2],"-g",label="momentum ux"); 
+			# 	plot(timeVector, residualsVector3./residualsVectorMax[3],"-b",label="momentum uy"); 
+			# 	plot(timeVector, residualsVector4./residualsVectorMax[4],"-c",label="energy"); 
+			# end
+			
+			# yscale("log");	
+			# xlabel("flow time [s]");
+			# ylabel("Res");
+			# title("Residuals");
+			# legend();
 			
 			pause(1.0e-5);
 			
