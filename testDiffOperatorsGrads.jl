@@ -128,6 +128,22 @@ function calcScalarFieldGreenGaussNodesBasedGradient(cellsThreads::Array{Int32,2
                     
                        
                     end
+
+
+                    if (testMesh.cell_stiffness[C,1] < 0)
+                        phiFaceX[1] = scalarFieldCells[C]*-ny[1]*side[1];		
+                        phiFaceY[1] = scalarFieldCells[C]*-nx[1]*side[1];    
+                    elseif (testMesh.cell_stiffness[C,2] < 0)
+                        phiFaceX[2] = scalarFieldCells[C]*-ny[2]*side[2];		
+                        phiFaceY[2] = scalarFieldCells[C]*-nx[2]*side[2];    
+                    elseif (testMesh.cell_stiffness[C,3] < 0)    
+                        phiFaceX[3] = scalarFieldCells[C]*-ny[3]*side[3];		
+                        phiFaceY[3] = scalarFieldCells[C]*-nx[3]*side[3];    
+                    elseif (testMesh.cell_stiffness[C,4] < 0 && testMesh.mesh_connectivity[C,3] == 4)
+                        phiFaceX[4] = scalarFieldCells[C]*-ny[4]*side[4];		
+                        phiFaceY[4] = scalarFieldCells[C]*-nx[4]*side[4];    
+
+                    end
                 
                     
                     phiFaceX[1] = 0.5*(phiLeft[1] + phiRight[1])*-ny[1]*side[1];		
@@ -151,84 +167,7 @@ function calcScalarFieldGreenGaussNodesBasedGradient(cellsThreads::Array{Int32,2
   
             end ## threads
 
-            ## looping for boundary cells 
-
-            for B = 1:length(testMesh.bc_indexes)
-                BCell = testMesh.bc_data[B,1];
-                gradX[BCell] = gradY[BCell] = 0.0;    
-                phi0 = scalarFieldCells[BCell];
-                x0 = testMesh.cell_mid_points[BCell,1];
-                y0 = testMesh.cell_mid_points[BCell,2];   
-                xI = zeros(Float64,4);
-                yI = zeros(Float64,4);
-                phiI = zeros(Float64,4);
-                #indexI = ones(Float64,4);
-                WiX = zeros(Float64,4);
-                WiY = zeros(Float64,4);
-
-                v = 1;
-                for neibI = 1:4
-
-                    cellI = testMesh.cell_stiffness[BCell,neibI];    
-
-                    if cellI >=1 && cellI <= testMesh.nCells ## interior cells
-                        xI[neibI] =  testMesh.cell_mid_points[cellI,1];  
-                        yI[neibI] =  testMesh.cell_mid_points[cellI,2];  
-                        phiI[neibI] = scalarFieldCells[cellI];
-                        #indexI[neibI] = 1.0;
-                    elseif cellI < 0 ## boundary cells
-                        ## apply BCs here 
-                        
-                        # node1 = testMesh.cells2nodes[BCell,v]
-                        # node2 = testMesh.cells2nodes[BCell,v+1]
-                        # sp = zeros(Float64,2);
-                        # getSymmetricalPointAboutCellEdge(x0,y0, testMesh.xNodes[node1], testMesh.yNodes[node1], testMesh.xNodes[node2], testMesh.yNodes[node2], sp);
-                        # xI[neibI] = sp[1];
-                        # yI[neibI] = sp[2];
-                        # phiI[neibI] =  UGtest(xI[neibI],yI[neibI]);
-
-                        #xI[neibI] = x0;
-                        #yI[neibI] = y0;
-                        #phiI[neibI] =  phi0;
-
-
-                       
-                    end
-                    v += 2;
-
-                end
-
-                r11 = sqrt( (xI[1]-x0)*(xI[1]-x0) + (xI[2]-x0)*(xI[2]-x0) + (xI[3]-x0)*(xI[3]-x0) + (xI[4]-x0)*(xI[4]-x0)  ) ;
-                r12 = 1.0/r11*( (xI[1]-x0)*(yI[1]-y0) + (xI[2]-x0)*(yI[2]-y0) + (xI[3]-x0)*(yI[3]-y0) + (xI[4]-x0)*(yI[4]-y0) ) ;
-                r22 = sqrt( ((yI[1]-y0) - (xI[1]-x0)*r12/r11)^2 + ((yI[2]-y0) - (xI[2]-x0)*r12/r11)^2 + ((yI[3]-y0) - (xI[3]-x0)*r12/r11)^2 + ((yI[4]-y0) - (xI[4]-x0)*r12/r11)^2 ) ;
-                
-                # WiY[1] = 1.0/r22/r22*( (yI[1]-y0) - (xI[1]-x0)*r12/r11)*indexI[1] ;  
-                # WiY[2] = 1.0/r22/r22*( (yI[2]-y0) - (xI[2]-x0)*r12/r11)*indexI[2] ;  
-                # WiY[3] = 1.0/r22/r22*( (yI[3]-y0) - (xI[3]-x0)*r12/r11)*indexI[3] ;  
-                # WiY[4] = 1.0/r22/r22*( (yI[4]-y0) - (xI[4]-x0)*r12/r11)*indexI[4] ;  
-
-                # WiX[1] = (1.0/r11/r11*(xI[1]-x0) - r12/r11/r22/r22*( (yI[1] -y0) - (xI[1]-x0)*r12/r11 ))*indexI[1];
-                # WiX[2] = (1.0/r11/r11*(xI[2]-x0) - r12/r11/r22/r22*( (yI[2] -y0) - (xI[2]-x0)*r12/r11 ))*indexI[2];
-                # WiX[3] = (1.0/r11/r11*(xI[3]-x0) - r12/r11/r22/r22*( (yI[3] -y0) - (xI[3]-x0)*r12/r11 ))*indexI[3];
-                # WiX[4] = (1.0/r11/r11*(xI[4]-x0) - r12/r11/r22/r22*( (yI[4] -y0) - (xI[4]-x0)*r12/r11 ))*indexI[4];
-
-                WiY[1] = 1.0/r22/r22*( (yI[1]-y0) - (xI[1]-x0)*r12/r11) ;  
-                WiY[2] = 1.0/r22/r22*( (yI[2]-y0) - (xI[2]-x0)*r12/r11) ;  
-                WiY[3] = 1.0/r22/r22*( (yI[3]-y0) - (xI[3]-x0)*r12/r11) ;  
-                WiY[4] = 1.0/r22/r22*( (yI[4]-y0) - (xI[4]-x0)*r12/r11) ;  
-
-                WiX[1] = (1.0/r11/r11*(xI[1]-x0) - r12/r11/r22/r22*( (yI[1] -y0) - (xI[1]-x0)*r12/r11 )) ;
-                WiX[2] = (1.0/r11/r11*(xI[2]-x0) - r12/r11/r22/r22*( (yI[2] -y0) - (xI[2]-x0)*r12/r11 )) ;
-                WiX[3] = (1.0/r11/r11*(xI[3]-x0) - r12/r11/r22/r22*( (yI[3] -y0) - (xI[3]-x0)*r12/r11 )) ;
-                WiX[4] = (1.0/r11/r11*(xI[4]-x0) - r12/r11/r22/r22*( (yI[4] -y0) - (xI[4]-x0)*r12/r11 )) ;
-
-
-
-                gradX[BCell] = (WiX[1]*(phiI[1]-phi0) + WiX[2]*(phiI[2]-phi0) + WiX[3]*(phiI[3]-phi0) + WiX[4]*(phiI[4]-phi0) )*testMesh.cell_areas[BCell] ;
-                gradY[BCell] = (WiY[1]*(phiI[1]-phi0) + WiY[2]*(phiI[2]-phi0) + WiY[3]*(phiI[3]-phi0) + WiY[4]*(phiI[4]-phi0) )*testMesh.cell_areas[BCell] ; 
-               
-
-            end
+          
   
   end
 
