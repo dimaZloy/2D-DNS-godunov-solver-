@@ -19,7 +19,7 @@ solControls = CONTROLS(
 	1.0e-7, ##5.0e-9, # time step, 
 	0, # fixed timeStepMethod (1 - adaptive)
 	0.0,  # actual physical time to start simulation
-	1.0e-3,  # actual physical time to stop simulation 
+	0.25,  # actual physical time to stop simulation 
 	1, # flag to plot residuals
 	0, # flag to constrain density
 	0.01, # minDensityConstrained::Float64;
@@ -54,7 +54,7 @@ dynControls.globalPath = pwd();
 
 
 output = outputCONTROLS(
-	100, #verbosity::Int8;  
+	1000, #verbosity::Int8;  
 	"Time[s]\t Tau[s]\t Resid1\t Resid2\t Resid3\t Resid4\t CPUtime [s]", 
 	0, #saveResiduals::Int8;
 	0, #saveResults::Int8; 

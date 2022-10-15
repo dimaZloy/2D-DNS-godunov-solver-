@@ -1,4 +1,10 @@
 
+@inline function computeTGV2d_Ek_Theory(U0::Float64, mu::Float64, L::Float64, time::Float64)::Float64
+
+	return  U0*U0*pi*pi*exp(-4.0*mu*time/L/L);
+
+end
+
 
 @inline function computeTGV2d(x::Float64, y::Float64, time::Float64, thermo::THERMOPHYSICS, primitiveVars::Vector{Float64})
 

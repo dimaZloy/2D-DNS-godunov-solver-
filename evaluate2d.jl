@@ -159,7 +159,9 @@ function updateVariablesSA(
 	output::outputCONTROLS,
 	dynControls::DYNAMICCONTROLS,
 	solInst::solutionCellsT,
-	thermo::THERMOPHYSICS)
+	thermo::THERMOPHYSICS,
+	kVectorTheory::Array{Any,1},
+	kVectorApprox::Array{Any,1})
 
 	if (dynControls.verIter == output.verbosity)
 
@@ -236,7 +238,7 @@ function updateVariablesSA(
 			end
 
 			
-			subplot(3,2,2);	
+			subplot(3,3,2);	
 			cla();
 			
 			##tricontourf(testMesh.xNodes,testMesh.yNodes, triangles, densityF,pControls.nContours,vmin=pControls.rhoMINcont,vmax=pControls.rhoMAXcont);
@@ -248,7 +250,7 @@ function updateVariablesSA(
 			title("Contours of density");
 			axis("equal");
 
-			subplot(3,2,4);	
+			subplot(3,3,5);	
 			cla();
 			
 			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, testFields.pressureNodes);#, vmin=minP,vmax=maxP);
@@ -260,7 +262,7 @@ function updateVariablesSA(
 			axis("equal");
 			
 
-			subplot(3,2,6);	
+			subplot(3,3,8);	
 			cla();
 			
 			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, sqrt.(testFields.UxNodes.*testFields.UxNodes .+ testFields.UyNodes.*testFields.UyNodes) );
@@ -273,7 +275,7 @@ function updateVariablesSA(
 			
 			#############################################################################################
 
-			subplot(3,2,1);	
+			subplot(3,3,1);	
 			cla();
 			
 			##tricontourf(testMesh.xNodes,testMesh.yNodes, triangles, densityF,pControls.nContours,vmin=pControls.rhoMINcont,vmax=pControls.rhoMAXcont);
@@ -285,7 +287,7 @@ function updateVariablesSA(
 			title("Contours of density");
 			axis("equal");
 
-			subplot(3,2,3);	
+			subplot(3,3,4);	
 			cla();
 			
 			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, TGV2dPressureNodes);#, vmin=minP,vmax=maxP);
@@ -297,7 +299,7 @@ function updateVariablesSA(
 			axis("equal");
 			
 
-			subplot(3,2,5);	
+			subplot(3,3,7);	
 			cla();
 			
 			tricontourf(testMesh.xNodes,testMesh.yNodes, testMesh.triangles, TGV2dUMagNodes );
@@ -309,21 +311,22 @@ function updateVariablesSA(
 			axis("equal");
 			
 			
-			# subplot(2,1,2);
-			# cla();
+			subplot(3,3,3);
+			 cla();
 			
-			# if (size(timeVector,1) >1)
-			# 	plot(timeVector, residualsVector1./residualsVectorMax[1],"-r",label="continuity"); 
-			# 	plot(timeVector, residualsVector2./residualsVectorMax[2],"-g",label="momentum ux"); 
+			 if (size(timeVector,1) >1)
+			 	plot(timeVector, kVectorTheory,"-r",label="EK/E0 theory"); 
+			 	plot(timeVector, kVectorApprox,"-g",label="EK/E0 approx"); 
 			# 	plot(timeVector, residualsVector3./residualsVectorMax[3],"-b",label="momentum uy"); 
 			# 	plot(timeVector, residualsVector4./residualsVectorMax[4],"-c",label="energy"); 
-			# end
+			 end
 			
-			# yscale("log");	
-			# xlabel("flow time [s]");
-			# ylabel("Res");
+			 yscale("log");	
+			 xlabel("flow time [s]");
+			 ylabel("E/E0");
 			# title("Residuals");
-			# legend();
+			 legend();
+			 grid();
 			
 			pause(1.0e-5);
 			
